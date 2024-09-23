@@ -1,0 +1,46 @@
+@startuml
+actor User
+
+participant "Game" as G
+participant "Player" as P
+participant "Worker" as W
+participant "Board" as B
+
+== Start Game ==
+User -> G: startGame()
+G -> P: initialize Players
+G -> B: initialize Board
+
+== Player's Turn ==
+User -> G: playTurn(workerIndex, moveX, moveY, buildX, buildY)
+G -> P: getCurrentPlayer()
+P -> W: selectWorker(workerIndex)
+
+== Validate Move ==
+W -> B: isValidMove(moveX, moveY)
+B --> W: return move validation
+
+== Move Worker ==
+W -> B: moveWorker(moveX, moveY)
+
+== Validate Build ==
+W -> B: isOccupied(buildX, buildY)
+B --> W: return build validation
+W -> B: build(block or dome)
+
+== Check Victory ==
+G -> P: checkVictory()
+P -> W: hasWorkerReachedLevel3()
+W -> B: getTowerHeight(workerX, workerY)
+B --> W: return tower height
+W --> P: return victory status
+P --> G: return victory status
+
+== End Turn or Declare Winner ==
+alt if victory
+    G -> User: declareWinner()
+else
+    G -> P: switchPlayer()
+    G -> User: promptNextTurn()
+end
+@enduml
