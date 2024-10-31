@@ -1,46 +1,28 @@
 @startuml
-actor User
+actor Player
 
-participant "Game" as G
-participant "Player" as P
-participant "Worker" as W
-participant "Board" as B
+Player -> GameSystem : startGame()
+GameSystem -> Player : acknowledges game start
 
-== Start Game ==
-User -> G: startGame()
-G -> P: initialize Players
-G -> B: initialize Board
+Player -> GameSystem : placeWorkers(worker1, worker2)
+GameSystem -> Player : acknowledges worker placement
 
-== Player's Turn ==
-User -> G: playTurn(workerIndex, moveX, moveY, buildX, buildY)
-G -> P: getCurrentPlayer()
-P -> W: selectWorker(workerIndex)
+loop Turn-Based Loop
+    Player -> GameSystem : takeTurn()
+    Player -> GameSystem : selectWorker(worker1)
+    Player -> GameSystem : moveWorker(toPosition)
+    GameSystem -> Player : confirms move
 
-== Validate Move ==
-W -> B: isValidMove(moveX, moveY)
-B --> W: return move validation
+    Player -> GameSystem : buildStructure(location, type)
+    GameSystem -> Player : confirms build
 
-== Move Worker ==
-W -> B: moveWorker(moveX, moveY)
-
-== Validate Build ==
-W -> B: isOccupied(buildX, buildY)
-B --> W: return build validation
-W -> B: build(block or dome)
-
-== Check Victory ==
-G -> P: checkVictory()
-P -> W: hasWorkerReachedLevel3()
-W -> B: getTowerHeight(workerX, workerY)
-B --> W: return tower height
-W --> P: return victory status
-P --> G: return victory status
-
-== End Turn or Declare Winner ==
-alt if victory
-    G -> User: declareWinner()
-else
-    G -> P: switchPlayer()
-    G -> User: promptNextTurn()
+    Player -> GameSystem : checkWinCondition()
+    alt if win condition not met
+        GameSystem -> Player : continue
+    else if win condition met
+        GameSystem -> Player : playerWins()
+    end
 end
+
+Player -> GameSystem : reportWinner()
 @enduml

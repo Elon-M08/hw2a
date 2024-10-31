@@ -28,6 +28,20 @@
     - The destination position must not contain another worker or a dome.
     - *Example*: The worker cannot move to (1, 1) if it's occupied by another worker or a level-3 tower with a dome.
 
+7. **The tower is complete**
+    - The grid has been initialized with positions for all towers and empty fields.
+    - Each position on the grid can have a tower with 0 to 3 levels.
+    - Only level-3 towers are allowed to have domes.
+    - Workers cannot occupy a position with a dome.
+
+    - *Example*: 
+    ```pseudo
+    function isTowerComplete(towerPosition, grid):
+        tower = grid[towerPosition]
+        if tower.towerLevel == 3 and tower.hasDome:
+            return true  // Tower is complete
+            return false     // Tower is incomplete
+
 ### Postconditions:
 1. **Worker's position is updated**:
     - The worker’s new position is updated to the destination coordinates (`toX`, `toY`).

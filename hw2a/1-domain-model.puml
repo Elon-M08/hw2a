@@ -4,6 +4,7 @@ class Game {
 }
 
 class Player {
+    Color
 }
 
 class Worker {
