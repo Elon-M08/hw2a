@@ -1,0 +1,1346 @@
+update the frontend for this backend, support user playing santorini, package org.example; 
+
+import java.util.Objects;
+import java.util.Arrays;
+/**
+ * The Board class represents a 5x5 game board used in the game Santorini, containing
+ * functionality for managing tower heights, worker positions, and movements. Each
+ * field on the board is tracked for its tower height and whether it is occupied by a
+ * worker or dome. This class provides methods to build towers, check for valid moves,
+ * place workers, and move them according to the rules of the game.
+ *
+ * Fields:
+ * - `grid` (int[][]): A 5x5 grid representing the tower height at each position.
+ *   Heights range from 0 (empty) to 3 (maximum tower height), with 4 indicating a dome.
+ * - `workers` (Worker[][]): A 5x5 grid representing the presence of workers. Each
+ *   position is either null (no worker) or contains a Worker object.
+ *
+ * Key Methods:
+ * - `isOccupied(int x, int y)`: Checks if a field is occupied by a worker or a dome.
+ * - `getTowerHeight(int x, int y)`: Returns the current height of the tower at a given field.
+ * - `build(int x, int y)`: Builds a block or dome on an unoccupied field, up to a max
+ *   height of 3, then adds a dome.
+ * - `isValidMove(int fromX, int fromY, int toX, int toY)`: Checks if a move from one
+ *   field to an adjacent field is valid according to adjacency and height rules.
+ * - `placeWorker(int x, int y, Worker worker)`: Places a worker on the board if the field
+ *   is unoccupied.
+ * - `moveWorker(int fromX, int fromY, int toX, int toY)`: Moves a worker from one position
+ *   to another if the move is valid.
+ * - `getWorkerAt(int x, int y)`: Retrieves the worker at the specified position.
+ * - `resetBoard()`: Resets the board to its initial state.
+ *
+ * This class ensures game rules are enforced for tower building, worker placement, and
+ * movement, enabling core gameplay mechanics of the Santorini board.
+ */
+public class Board {
+    private static final int BOARD_SIZE = 5;
+    private final int[][] grid;
+    private final Worker[][] workers;
+
+    /**
+     * Constructor to initialize the board with empty towers and no workers.
+     */
+    public Board() {
+        grid = new int[BOARD_SIZE][BOARD_SIZE];
+        workers = new Worker[BOARD_SIZE][BOARD_SIZE];
+    }
+
+    /**
+     * Checks if the specified field is occupied by a worker or has a dome.
+     *
+     * @param x The X-coordinate (0-based).
+     * @param y The Y-coordinate (0-based).
+     * @return True if the field is occupied; false otherwise.
+     */
+    public boolean isOccupied(int x, int y) {
+        if (!isWithinBounds(x, y)) {
+            return false;
+        }
+        return workers[x][y] != null || grid[x][y] == 4;  // 4 means a dome
+    }
+
+    /**
+     * Returns the current height of the tower at a given field.
+     *
+     * @param x The X-coordinate (0-based).
+     * @param y The Y-coordinate (0-based).
+     * @return The height of the tower.
+     * @throws IllegalArgumentException If coordinates are out of bounds.
+     */
+    public int getTowerHeight(int x, int y) {
+        if (!isWithinBounds(x, y)) {
+            throw new IllegalArgumentException("Coordinates out of bounds.");
+        }
+        return grid[x][y];
+    }
+
+    /**
+     * Builds a block or dome on the specified field.
+     *
+     * @param x The X-coordinate (0-based).
+     * @param y The Y-coordinate (0-based).
+     * @return True if the build was successful; false otherwise.
+     */
+    public boolean build(int x, int y) {
+        if (!isWithinBounds(x, y)) {
+            System.out.println("Build failed: Coordinates out of bounds.");
+            return false;
+        }
+
+        if (isOccupied(x, y)) {
+            System.out.println("Build failed: Field is occupied.");
+            return false;  // Cannot build on an occupied field.
+        }
+
+        // Build a block if the tower is less than 3, otherwise build a dome.
+        if (grid[x][y] < 3) {
+            grid[x][y]++;
+        } else if (grid[x][y] == 3) {
+            grid[x][y] = 4;  // Build a dome on a level-3 tower.
+        } else {
+            System.out.println("Build failed: Maximum tower height reached.");
+            return false; // Cannot build beyond a dome.
+        }
+        return true;
+    }
+
+    /**
+     * Checks if a move from one field to an adjacent field is valid according to
+     * adjacency and height rules.
+     *
+     * @param fromX The X-coordinate of the source position.
+     * @param fromY The Y-coordinate of the source position.
+     * @param toX   The X-coordinate of the target position.
+     * @param toY   The Y-coordinate of the target position.
+     * @return True if the move is valid; false otherwise.
+     */
+    public boolean isValidMove(int fromX, int fromY, int toX, int toY) {
+        // Check if both source and target positions are within bounds.
+        if (!isWithinBounds(fromX, fromY) || !isWithinBounds(toX, toY)) {
+            return false;
+        }
+
+        // Check if the target field is adjacent.
+        if (Math.abs(fromX - toX) > 1 || Math.abs(fromY - toY) > 1) {
+            return false;
+        }
+
+        // Check if the target field is unoccupied.
+        if (isOccupied(toX, toY)) {
+            return false;
+        }
+
+        // Check if the worker can climb no more than one level.
+        if (grid[toX][toY] - grid[fromX][fromY] > 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Places a worker on the specified field if it is unoccupied.
+     *
+     * @param x      The X-coordinate (0-based).
+     * @param y      The Y-coordinate (0-based).
+     * @param worker The Worker to place.
+     * @return True if the placement was successful; false otherwise.
+     */
+    public boolean placeWorker(int x, int y, Worker worker) {
+        if (worker == null) {
+            System.out.println("Placement failed: Worker is null.");
+            return false;
+        }
+
+        if (!isWithinBounds(x, y)) {
+            System.out.println("Placement failed: Coordinates out of bounds.");
+            return false;
+        }
+
+        if (!isOccupied(x, y)) {
+            workers[x][y] = worker;
+            worker.setPosition(x, y); // Ensure worker's internal position is set
+            return true;
+        } else {
+            System.out.println("Placement failed: Field is occupied.");
+            return false;
+        }
+    }
+
+    /**
+     * Moves a worker from one position to another if the move is valid.
+     *
+     * @param fromX The X-coordinate of the worker's current position.
+     * @param fromY The Y-coordinate of the worker's current position.
+     * @param toX   The X-coordinate of the target position.
+     * @param toY   The Y-coordinate of the target position.
+     * @return True if the move was successful; false otherwise.
+     */
+    public boolean moveWorker(int fromX, int fromY, int toX, int toY) {
+        if (!isWithinBounds(fromX, fromY) || !isWithinBounds(toX, toY)) {
+            System.out.println("Move failed: Coordinates out of bounds.");
+            return false;
+        }
+
+        Worker worker = workers[fromX][fromY];
+        if (worker == null) {
+            System.out.println("Move failed: No worker at the source position.");
+            return false;
+        }
+
+        if (isValidMove(fromX, fromY, toX, toY)) {
+            workers[toX][toY] = worker;
+            workers[fromX][fromY] = null;
+            worker.setPosition(toX, toY); // Update worker's internal position
+            return true;
+        } else {
+            System.out.println("Move failed: Invalid move.");
+            return false;
+        }
+    }
+
+    /**
+     * Retrieves the worker at the specified position.
+     *
+     * @param x The X-coordinate (0-based).
+     * @param y The Y-coordinate (0-based).
+     * @return The Worker at the position; null if unoccupied or out of bounds.
+     */
+    public Worker getWorkerAt(int x, int y) {
+        if (!isWithinBounds(x, y)) {
+            return null;
+        }
+        return workers[x][y];
+    }
+
+    /**
+     * Resets the board by clearing all towers and worker positions.
+     */
+    public void resetBoard() {
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                grid[i][j] = 0;
+                workers[i][j] = null;
+            }
+        }
+    }
+
+    /**
+     * Returns the grid representing tower heights.
+     *
+     * @return A deep copy of the 2D array of tower heights.
+     */
+    public int[][] getGrid() {
+        int[][] copy = new int[BOARD_SIZE][BOARD_SIZE];
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            System.arraycopy(grid[i], 0, copy[i], 0, BOARD_SIZE);
+        }
+        return copy;
+    }
+
+    /**
+     * Checks if the given coordinates are within the board boundaries.
+     *
+     * @param x The X-coordinate.
+     * @param y The Y-coordinate.
+     * @return True if within bounds; false otherwise.
+     */
+    public boolean isWithinBounds(int x, int y) {
+        return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
+    }
+
+    /**
+     * Provides a string representation of the board for debugging purposes.
+     *
+     * @return A string detailing the tower heights and worker positions.
+     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Board State:\n");
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                sb.append(String.format("[%d%s] ", grid[i][j],
+                        workers[i][j] != null ? "W" : " "));
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Checks if two Board objects are equal based on their grids and worker positions.
+     *
+     * @param obj The object to compare with.
+     * @return True if equal; false otherwise.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Board)) return false;
+        Board other = (Board) obj;
+        return Objects.deepEquals(this.grid, other.grid) && Objects.deepEquals(this.workers, other.workers);
+    }
+
+    /**
+     * Generates a hash code for the board based on its grids and worker positions.
+     *
+     * @return The hash code.
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(Arrays.deepHashCode(grid), Arrays.deepHashCode(workers));
+    }
+}
+package org.example;
+
+import fi.iki.elonen.NanoHTTPD;
+import org.json.JSONObject;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.*;
+
+public class App extends NanoHTTPD {
+
+    private Game game;
+
+
+    public App() throws IOException {
+        super(8080);
+        this.game = new Game(); // Initialize the game
+        start(SOCKET_READ_TIMEOUT, false);
+        System.out.println("Server running at http://localhost:8080/");
+    }
+
+    public static void main(String[] args) {
+        try {
+            new App();
+        } catch (IOException e) {
+            System.err.println("Couldn't start server:\n" + e);
+        }
+    }
+
+    @Override
+    public Response serve(IHTTPSession session) {
+        String uri = session.getUri();
+        Method method = session.getMethod();
+
+        try {
+            if (uri.equals("/") || uri.startsWith("/static/")) {
+                return serveStaticFile(uri);
+            } else if (method == Method.POST && uri.equals("/start-game")) {
+                return handleStartGame();
+            } else if (method == Method.GET && uri.equals("/game-state")) {
+                return handleGetGameState();
+            } else if (method == Method.POST && uri.equals("/action")) {
+                return handleAction(session);
+            } else {
+                return createJsonResponse(Response.Status.NOT_FOUND, Map.of("error", "Endpoint not found"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return createJsonResponse(Response.Status.INTERNAL_ERROR, Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Handles the `/start-game` endpoint to reset the game.
+     *
+     * @return The HTTP response indicating the game has been restarted.
+     */
+    private Response handleStartGame() {
+        this.game = new Game(); // Reset the game
+
+        // Prepare the game state to return
+        Map<String, Object> state = new HashMap<>();
+        state.put("message", "Game restarted");
+        state.put("grid", serializeGrid());
+        state.put("workers", serializeWorkers());
+        state.put("currentPlayer", game.getCurrentPlayer().getName());
+        state.put("gamePhase", game.getCurrentPhase().toString());
+        state.put("gameEnded", game.isGameEnded());
+        String status = game.isGameEnded() ? game.getCurrentPlayer().getName() + " Wins!" : "In Progress";
+        state.put("status", status);
+
+        return createJsonResponse(Response.Status.OK, state);
+    }
+
+
+    /**
+     * Handles the `/game-state` endpoint to retrieve the current game state.
+     *
+     * @return The HTTP response containing the game state.
+     */
+    private Response handleGetGameState() {
+        Map<String, Object> state = new HashMap<>();
+        state.put("grid", serializeGrid());
+        state.put("workers", serializeWorkers());
+        state.put("currentPlayer", game.getCurrentPlayer().getName());
+        state.put("gamePhase", game.getCurrentPhase().toString());
+        state.put("gameEnded", game.isGameEnded());
+        String status = game.isGameEnded() ? game.getCurrentPlayer().getName() + " Wins!" : "In Progress";
+        state.put("status", status);
+        return createJsonResponse(Response.Status.OK, state);
+    }
+
+    /**
+     * Serializes the game board into a JSON-friendly format.
+     *
+     * @return A list representing the serialized grid.
+     */
+    private List<List<Map<String, Object>>> serializeGrid() {
+        int boardSize = 5; // Assuming a 5x5 board
+        List<List<Map<String, Object>>> serializedGrid = new ArrayList<>();
+
+        for (int x = 0; x < boardSize; x++) {
+            List<Map<String, Object>> row = new ArrayList<>();
+            for (int y = 0; y < boardSize; y++) {
+                Map<String, Object> cellData = new HashMap<>();
+                cellData.put("x", x);
+                cellData.put("y", y);
+                cellData.put("height", game.getBoard().getTowerHeight(x, y));
+
+                Worker worker = game.getBoard().getWorkerAt(x, y);
+                if (worker != null) {
+                    Map<String, Object> workerData = new HashMap<>();
+                    workerData.put("id", worker.hashCode()); // or any unique identifier
+                    workerData.put("player", worker.getOwner().getName());
+                    workerData.put("x", worker.getX());
+                    workerData.put("y", worker.getY());
+                    cellData.put("worker", workerData);
+                }
+
+                row.add(cellData);
+            }
+            serializedGrid.add(row);
+        }
+
+        return serializedGrid;
+    }
+
+    /**
+     * Serializes the workers into a JSON-friendly format.
+     *
+     * @return A list representing the serialized workers.
+     */
+    private List<Map<String, Object>> serializeWorkers() {
+        List<Map<String, Object>> workersList = new ArrayList<>();
+        for (Worker worker : game.getAllWorkers()) {
+            Map<String, Object> workerData = new HashMap<>();
+            workerData.put("id", worker.hashCode()); // or any unique identifier
+            workerData.put("player", worker.getOwner().getName());
+            workerData.put("position", Map.of("x", worker.getX(), "y", worker.getY()));
+            workersList.add(workerData);
+        }
+        return workersList;
+    }
+
+    /**
+     * Handles the `/action` endpoint to process player actions such as placing a worker, moving, or building.
+     *
+     * @param session The HTTP session containing the action details.
+     * @return The HTTP response indicating the result of the action.
+     */
+    private Response handleAction(IHTTPSession session) {
+        Map<String, String> postData = new HashMap<>();
+        try {
+            session.parseBody(postData);
+        } catch (ResponseException re) {
+            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "ResponseException: " + re.getMessage()));
+        } catch (IOException ioe) {
+            return createJsonResponse(Response.Status.INTERNAL_ERROR, Map.of("error", "IOException: " + ioe.getMessage()));
+        }
+
+        String jsonBody = postData.get("postData");
+        if (jsonBody == null || jsonBody.isEmpty()) {
+            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Empty request body."));
+        }
+
+        JSONObject json;
+        try {
+            json = new JSONObject(jsonBody);
+        } catch (Exception e) {
+            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Invalid JSON format."));
+        }
+
+        String actionType = json.optString("actionType", "");
+        int workerIndex = json.optInt("workerIndex", -1);
+        int x = json.optInt("x", -1);
+        int y = json.optInt("y", -1);
+
+        try {
+            switch (actionType) {
+                case "placeWorker":
+                    // Place a worker during the placement phase
+                    if (x == -1 || y == -1) {
+                        return createJsonResponse(Response.Status.BAD_REQUEST,
+                                Map.of("error", "Placement action requires 'x' and 'y'."));
+                    }
+                    game.placeWorker(x, y);
+                    break;
+
+                case "move":
+                    // Move a worker
+                    if (workerIndex == -1 || x == -1 || y == -1) {
+                        return createJsonResponse(Response.Status.BAD_REQUEST,
+                                Map.of("error", "Move action requires 'workerIndex', 'x', and 'y'."));
+                    }
+                    game.moveWorker(workerIndex, x, y);
+                    break;
+
+                case "build":
+                    // Build action
+                    if (x == -1 || y == -1) {
+                        return createJsonResponse(Response.Status.BAD_REQUEST,
+                                Map.of("error", "Build action requires 'x' and 'y'."));
+                    }
+                    game.build(x, y);
+                    break;
+
+                default:
+                    // Handle invalid action type
+                    return createJsonResponse(Response.Status.BAD_REQUEST,
+                            Map.of("error", "Invalid action type."));
+            }
+
+            // Prepare the game state to return
+            Map<String, Object> state = new HashMap<>();
+            state.put("message", "Action processed.");
+            state.put("grid", serializeGrid());
+            state.put("workers", serializeWorkers());
+            state.put("currentPlayer", game.getCurrentPlayer().getName());
+            state.put("gamePhase", game.getCurrentPhase().toString());
+            state.put("gameEnded", game.isGameEnded());
+            String status = game.isGameEnded() ? game.getCurrentPlayer().getName() + " Wins!" : "In Progress";
+            state.put("status", status);
+
+            return createJsonResponse(Response.Status.OK, state);
+
+        } catch (Exception e) {
+            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Utility method to create a JSON-formatted HTTP response.
+     *
+     * @param status The HTTP status.
+     * @param data   The data to include in the JSON response.
+     * @return The HTTP response.
+     */
+    private Response createJsonResponse(Response.Status status, Map<String, Object> data) {
+        return newFixedLengthResponse(status, "application/json", new JSONObject(data).toString());
+    }
+    /**
+     * Serves static files (HTML, CSS, JS) from the 'static' directory.
+     *
+     * @param uri The requested URI.
+     * @return The HTTP response containing the file content.
+     */
+    private Response serveStaticFile(String uri) {
+        String filePath;
+        if (uri.equals("/")) {
+            filePath = "static/index.html"; // Default to index.html
+        } else {
+            filePath = uri.substring(1); // Remove leading '/'
+        }
+
+        File file = new File(filePath);
+        if (!file.exists() || file.isDirectory()) {
+            return newFixedLengthResponse(Response.Status.NOT_FOUND, NanoHTTPD.MIME_PLAINTEXT, "File not found");
+        }
+
+        String mimeType = getMimeTypeForFile(filePath);
+        try {
+            FileInputStream fis = new FileInputStream(file);
+            return newFixedLengthResponse(Response.Status.OK, mimeType, fis, file.length());
+        } catch (IOException e) {
+            return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, NanoHTTPD.MIME_PLAINTEXT, "Internal Server Error");
+        }
+    }
+
+
+    
+}package org.example;
+
+/**
+ * The Cell class represents a single cell on the Santorini game board.
+ * It maintains the height of the tower built on it, any worker that occupies it,
+ * and whether the cell is selectable for an action.
+ */
+public class Cell {
+    private int height;      // The height of the tower on this cell (0-4)
+    private Worker worker;   // The worker occupying this cell, if any
+    private boolean selectable; // Indicates if the cell can be chosen
+
+    /**
+     * Constructor to initialize the cell with a default height of 0, no worker, and not selectable.
+     */
+    public Cell() {
+        this.height = 0;
+        this.worker = null;
+        this.selectable = false;
+    }
+
+    /**
+     * Retrieves the current height of the tower on this cell.
+     *
+     * @return The height of the tower (0-4).
+     */
+    public int getHeight() {
+        return height;
+    }
+
+    /**
+     * Increases the height of the tower by 1, up to a maximum of 4 (dome).
+     *
+     * @return True if the height was increased; false if already at maximum height.
+     */
+    public boolean increaseHeight() {
+        if (height < 4) {
+            height++;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Sets the height of the tower on this cell.
+     *
+     * @param height The new height to set (should be between 0 and 4).
+     */
+    public void setHeight(int height) {
+        if (height >= 0 && height <= 4) {
+            this.height = height;
+        } else {
+            throw new IllegalArgumentException("Height must be between 0 and 4.");
+        }
+    }
+
+    /**
+     * Checks if a worker is present on this cell.
+     *
+     * @return True if a worker occupies this cell; false otherwise.
+     */
+    public boolean hasWorker() {
+        return worker != null;
+    }
+
+    /**
+     * Retrieves the worker occupying this cell.
+     *
+     * @return The Worker instance if present; null otherwise.
+     */
+    public Worker getWorker() {
+        return worker;
+    }
+
+    /**
+     * Places a worker on this cell.
+     *
+     * @param worker The Worker to place on this cell.
+     * @return True if the worker was placed successfully; false if the cell is already occupied.
+     */
+    public boolean setWorker(Worker worker) {
+        if (this.worker == null) {
+            this.worker = worker;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Removes the worker from this cell.
+     *
+     * @return True if a worker was removed; false if there was no worker on this cell.
+     */
+    public boolean removeWorker() {
+        if (this.worker != null) {
+            this.worker = null;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Checks if the cell is selectable for an action.
+     *
+     * @return True if the cell can be chosen; false otherwise.
+     */
+    public boolean isSelectable() {
+        return selectable;
+    }
+
+    /**
+     * Sets whether the cell is selectable.
+     *
+     * @param selectable True if the cell can be chosen; false otherwise.
+     */
+    public void setSelectable(boolean selectable) {
+        this.selectable = selectable;
+    }
+
+    /**
+     * Provides a string representation of the cell for debugging purposes.
+     *
+     * @return A string detailing the cell's height, worker status, and selectability.
+     */
+    @Override
+    public String toString() {
+        String workerInfo = hasWorker() ? worker.getOwner().getName() : "None";
+        return String.format("Cell[Height=%d, Worker=%s, Selectable=%b]", height, workerInfo, selectable);
+    }
+}package org.example;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+/**
+ * The Game class manages the core logic of the Santorini game, including player turns,
+ * board state, and victory conditions. It interfaces with the Board and Player classes
+ * to execute game actions and determine the game's progress.
+ */
+public class Game {
+    private Player playerA;
+    private Player playerB;
+    private Board board;
+    private Player currentPlayer;
+    private Scanner scanner;
+    private boolean gameEnded = false;
+
+
+    // Enum to represent the current phase of the game
+    public enum GamePhase {
+        PLACEMENT,
+        MOVE,
+        BUILD
+    }
+    private GamePhase currentPhase = GamePhase.PLACEMENT;
+    private int workersPlaced = 0; // To track the number of workers placed
+    private Worker selectedWorker = null;
+
+    /**
+     * Default constructor initializing the game.
+     */
+    public Game() {
+        initializeGame();
+    }
+
+    /**
+     * Initializes the game by setting up the board and players.
+     */
+    private void initializeGame() {
+        board = new Board();
+
+        // Initialize players without placing workers
+        playerA = new Player("Player A");
+        playerB = new Player("Player B");
+
+        // Player A always starts
+        currentPlayer = playerA;
+        currentPhase = GamePhase.PLACEMENT;
+        workersPlaced = 0;
+        selectedWorker = null;
+        gameEnded = false;
+    }
+
+    /**
+     * Retrieves the current player.
+     *
+     * @return The Player whose turn it is.
+     */
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    /**
+     * Switches the current player after each turn.
+     */
+    private void switchPlayer() {
+        currentPlayer = (currentPlayer == playerA) ? playerB : playerA;
+    }
+
+    /**
+     * Checks if the current player has won by moving a worker to a level-3 tower.
+     *
+     * @return True if the current player has won; false otherwise.
+     */
+    public boolean checkVictory() {
+        for (Worker worker : currentPlayer.getWorkers()) {
+            int x = worker.getX();
+            int y = worker.getY();
+
+            // Check if the worker moved up to level 3
+            if (board.getTowerHeight(x, y) == 3) {
+                System.out.println(currentPlayer.getName() + " wins!");
+                gameEnded = true;
+                return true;
+            }
+        }
+        return false;
+    }
+/**
+     * Places a worker on the board during the placement phase.
+     *
+     * @param x The X-coordinate to place the worker.
+     * @param y The Y-coordinate to place the worker.
+     * @return True if the placement was successful.
+     * @throws Exception If the placement is invalid or out of sequence.
+     */
+    public boolean placeWorker(int x, int y) throws Exception {
+        if (gameEnded) {
+            throw new Exception("Game has ended.");
+        }
+
+        if (currentPhase != GamePhase.PLACEMENT) {
+            throw new Exception("Not in the placement phase.");
+        }
+
+        // Each player places two workers
+        if (currentPlayer.getWorkers().size() >= 2) {
+            throw new Exception("All workers have been placed for " + currentPlayer.getName());
+        }
+
+        Worker newWorker = new Worker(currentPlayer, x, y);
+        boolean placed = board.placeWorker(x, y, newWorker);
+        if (!placed) {
+            throw new Exception("Failed to place worker. Invalid position or already occupied.");
+        }
+
+        currentPlayer.addWorker(newWorker);
+        workersPlaced++;
+
+        // Switch player after each worker placement
+        if (workersPlaced % 2 == 0) {
+            switchPlayer();
+        }
+
+        // Check if all workers have been placed to move to the next phase
+        if (playerA.getWorkers().size() == 2 && playerB.getWorkers().size() == 2) {
+            currentPhase = GamePhase.MOVE;
+        }
+
+        return true;
+    }
+
+    /**
+     * Moves a worker during the move phase.
+     *
+     * @param workerIndex The index of the worker to move.
+     * @param moveX       The X-coordinate to move to.
+     * @param moveY       The Y-coordinate to move to.
+     * @return True if the move was successful.
+     * @throws Exception If the move is invalid or out of sequence.
+     */
+    public boolean moveWorker(int workerIndex, int moveX, int moveY) throws Exception {
+        if (gameEnded) {
+            throw new Exception("Game has ended.");
+        }
+
+        if (currentPhase != GamePhase.MOVE) {
+            throw new Exception("Not in the move phase.");
+        }
+
+        selectedWorker = currentPlayer.getWorker(workerIndex);
+        if (selectedWorker == null) {
+            throw new Exception("Invalid worker selection.");
+        }
+
+        boolean moveSuccess = board.moveWorker(selectedWorker.getX(), selectedWorker.getY(), moveX, moveY);
+        if (!moveSuccess) {
+            throw new Exception("Invalid move. Try again.");
+        }
+
+        // Check for victory after move
+        if (checkVictory()) {
+            return true;
+        }
+
+        currentPhase = GamePhase.BUILD;
+        return true;
+    }
+
+    /**
+     * Builds on the board during the build phase.
+     *
+     * @param buildX The X-coordinate to build.
+     * @param buildY The Y-coordinate to build.
+     * @return True if the build was successful.
+     * @throws Exception If the build is invalid or out of sequence.
+     */
+    public boolean build(int buildX, int buildY) throws Exception {
+        if (gameEnded) {
+            throw new Exception("Game has ended.");
+        }
+
+        if (currentPhase != GamePhase.BUILD) {
+            throw new Exception("Not in the build phase.");
+        }
+
+        if (selectedWorker == null) {
+            throw new Exception("No worker has been moved this turn.");
+        }
+
+        boolean buildSuccess = board.build(buildX, buildY);
+        if (!buildSuccess) {
+            throw new Exception("Invalid build. Try again.");
+        }
+
+        // Reset for next player's turn
+        selectedWorker = null;
+        currentPhase = GamePhase.MOVE;
+        switchPlayer();
+        return true;
+    }
+
+    /**
+     * Retrieves the game board.
+     *
+     * @return The current Board instance.
+     */
+    public Board getBoard() {
+        return board;
+    }
+
+    /**
+     * Retrieves a list of all workers in the game.
+     *
+     * @return A List of Worker instances.
+     */
+    public List<Worker> getAllWorkers() {
+        List<Worker> workers = new ArrayList<>();
+        workers.addAll(playerA.getWorkers());
+        workers.addAll(playerB.getWorkers());
+        return workers;
+    }
+
+    /**
+     * Displays the current state of the game board in the console.
+     *
+     * This method outputs a visual representation of the 5x5 board, showing each
+     * field's tower height and occupancy status. For each field:
+     * - The tower height (0–3) or dome (4) is shown as an integer.
+     * - The occupancy status is represented by the first letter of the player's name
+     *   (e.g., "PA" for Player A) if occupied by a worker or "-" if unoccupied.
+     *
+     * Example output:
+     * ```
+     *    0  1  2  3  4
+     * 0  0- 1PA 0- 0- 2-
+     * 1  0- 1- 2PB 0- 3PC
+     * ...
+     * ```
+     */
+    public void displayBoard() {
+        System.out.println("\nCurrent Board:");
+        System.out.print("   ");
+        for (int j = 0; j < 5; j++) {
+            System.out.print(j + "  ");
+        }
+        System.out.println();
+        for (int i = 0; i < 5; i++) {
+            System.out.print(i + "  ");
+            for (int j = 0; j < 5; j++) {
+                int height = board.getTowerHeight(i, j);
+                Worker worker = board.getWorkerAt(i, j);
+                String occupied = (worker != null) ? worker.getOwner().getName().substring(0, 2) : "- ";
+                System.out.print(height + occupied + " ");
+            }
+            System.out.println();
+        }
+        System.out.println();
+    }
+
+    /**
+     * Helper method to safely get an integer from the user.
+     *
+     * @param prompt The prompt message to display.
+     * @return The integer input by the user.
+     */
+    private int getIntInput(String prompt) {
+        while (true) {
+            try {
+                System.out.print(prompt);
+                return scanner.nextInt();
+            } catch (Exception e) {
+                System.out.println("Invalid input. Please enter an integer.");
+                scanner.next();  // Clear invalid input
+            }
+        }
+    }
+
+    /**
+     * Helper method to get a validated integer input within a specified range.
+     *
+     * @param prompt The prompt message to display.
+     * @param min    The minimum acceptable value.
+     * @param max    The maximum acceptable value.
+     * @return The validated integer input.
+     */
+    private int getValidatedInput(String prompt, int min, int max) {
+        while (true) {
+            int input = getIntInput(prompt);
+            if (input >= min && input <= max) {
+                return input;
+            }
+            System.out.println("Invalid input. Please enter a value between " + min + " and " + max + ".");
+        }
+    }
+     /**
+     * Checks if the game has ended.
+     *
+     * @return True if the game has ended; false otherwise.
+     */
+    public boolean isGameEnded() {
+        return gameEnded;
+    }
+
+    /**
+     * Retrieves the current phase of the game.
+     *
+     * @return The current GamePhase.
+     */
+    public GamePhase getCurrentPhase() {
+        return currentPhase;
+    }
+    /**
+     * Runs the game loop, handling player turns and game progression.
+     */
+    public void run() {
+        System.out.println("Welcome to the Santorini game!");
+    
+        while (true) {
+            while (!gameEnded) {
+                // Display the current board state
+                displayBoard();
+    
+                System.out.println(currentPlayer.getName() + "'s turn:");
+    
+                try {
+                    switch (currentPhase) {
+                        case PLACEMENT:
+                            // Get input for worker placement
+                            int placeX = getValidatedInput("Enter placement position X (0-4): ", 0, 4);
+                            int placeY = getValidatedInput("Enter placement position Y (0-4): ", 0, 4);
+    
+                            placeWorker(placeX, placeY);
+                            break;
+    
+                        case MOVE:
+                            // Get input for moving a worker
+                            int workerIndex = getValidatedInput("Select a worker (0 or 1): ", 0, 1);
+                            int moveX = getValidatedInput("Enter move position X (0-4): ", 0, 4);
+                            int moveY = getValidatedInput("Enter move position Y (0-4): ", 0, 4);
+    
+                            moveWorker(workerIndex, moveX, moveY);
+                            break;
+    
+                        case BUILD:
+                            // Get input for building
+                            int buildX = getValidatedInput("Enter build position X (0-4): ", 0, 4);
+                            int buildY = getValidatedInput("Enter build position Y (0-4): ", 0, 4);
+    
+                            build(buildX, buildY);
+                            break;
+                    }
+                } catch (Exception e) {
+                    System.out.println("Error: " + e.getMessage());
+                }
+    
+                // Check if there is a winner
+                if (gameEnded) {
+                    System.out.println(currentPlayer.getName() + " wins!");
+                    break;
+                }
+            }
+    
+            // Restart option
+            System.out.println("Game over! Do you want to play again? (yes/no)");
+            String restart = scanner.next().toLowerCase();
+            if (!restart.equals("yes")) {
+                break;
+            }
+    
+            // Restart game
+            initializeGame();
+        }
+    
+        System.out.println("Thanks for playing!");
+    }
+    
+}package org.example;
+
+/**
+ * Custom exception thrown when an invalid placement action is attempted,
+ * such as placing a worker on an occupied or out-of-bounds position.
+ */
+public class InvalidPlacementException extends Exception {
+    /**
+     * Constructor to create an exception with a specific message.
+     *
+     * @param message The detail message.
+     */
+    public InvalidPlacementException(String message) {
+        super(message);
+    }
+}
+package org.example;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * The Player class represents a player in the Santorini game, managing their workers
+ * and interactions with the board. Each player has a name and can have up to two workers.
+ */
+public class Player {
+    private final String name;
+    private final List<Worker> workers;
+
+    /**
+     * Constructor to initialize a player with a name.
+     *
+     * @param name The name of the player.
+     */
+    public Player(String name) {
+        this.name = name;
+        this.workers = new ArrayList<>();
+    }
+
+    /**
+     * Retrieves the player's name.
+     *
+     * @return The name of the player as a String.
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Adds a worker to the player's list of workers.
+     *
+     * @param worker The Worker to add.
+     * @throws IllegalStateException If the player already has two workers.
+     */
+    public void addWorker(Worker worker) {
+        if (workers.size() >= 2) {
+            throw new IllegalStateException("Player already has two workers.");
+        }
+        workers.add(worker);
+    }
+
+    /**
+     * Retrieves the worker at the specified index.
+     *
+     * @param index The index of the worker (0 or 1).
+     * @return The Worker instance if index is valid; null otherwise.
+     */
+    public Worker getWorker(int index) {
+        if (index >= 0 && index < workers.size()) {
+            return workers.get(index);
+        }
+        return null;
+    }
+
+    /**
+     * Retrieves an unmodifiable list of the player's workers.
+     *
+     * @return A List containing the player's Worker instances.
+     */
+    public List<Worker> getWorkers() {
+        return Collections.unmodifiableList(workers);
+    }
+}package org.example;
+
+import java.util.Objects;
+
+/**
+ * The Position class represents a coordinate on the Santorini game board.
+ * It encapsulates the X and Y coordinates and provides utility methods for comparison.
+ */
+public class Position {
+    private final int x;
+    private final int y;
+
+    /**
+     * Constructor to initialize a position with specified coordinates.
+     *
+     * @param x The X-coordinate (0-based).
+     * @param y The Y-coordinate (0-based).
+     */
+    public Position(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * Retrieves the X-coordinate.
+     *
+     * @return The X-coordinate.
+     */
+    public int getX() {
+        return x;
+    }
+
+    /**
+     * Retrieves the Y-coordinate.
+     *
+     * @return The Y-coordinate.
+     */
+    public int getY() {
+        return y;
+    }
+
+    /**
+     * Provides a string representation of the position.
+     *
+     * @return A string detailing the X and Y coordinates.
+     */
+    @Override
+    public String toString() {
+        return String.format("Position(X=%d, Y=%d)", x, y);
+    }
+
+    /**
+     * Checks if this position is equal to another object.
+     *
+     * @param obj The object to compare with.
+     * @return True if the positions are equal; false otherwise.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Position)) return false;
+        Position other = (Position) obj;
+        return this.x == other.x && this.y == other.y;
+    }
+
+    /**
+     * Generates a hash code for the position.
+     *
+     * @return The hash code based on the coordinates.
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y);
+    }
+}
+package org.example;
+
+import java.util.Objects;
+
+/**
+ * Represents a worker in the Santorini game, maintaining its current position and ownership.
+ * A worker is owned by a player and resides on the game board at specific coordinates.
+ *
+ * <p>Workers can be moved according to the game's rules, and their positions are synchronized
+ * with the game board to ensure consistent game state.</p>
+ */
+public class Worker {
+    private int x; // Current x-coordinate of the worker
+    private int y; // Current y-coordinate of the worker
+    private final Player owner; // The player who owns this worker
+
+    /**
+     * Constructor to initialize a worker with its owner and starting position.
+     *
+     * @param owner  The player who owns the worker.
+     * @param startX The starting x-coordinate.
+     * @param startY The starting y-coordinate.
+     */
+    public Worker(Player owner, int startX, int startY) {
+        if (owner == null) {
+            throw new IllegalArgumentException("Owner cannot be null.");
+        }
+        this.owner = owner;
+        this.x = startX;
+        this.y = startY;
+    }
+
+    /**
+     * Retrieves the current x-coordinate of the worker.
+     *
+     * @return The current x-coordinate.
+     */
+    public int getX() {
+        return x;
+    }
+
+    /**
+     * Retrieves the current y-coordinate of the worker.
+     *
+     * @return The current y-coordinate.
+     */
+    public int getY() {
+        return y;
+    }
+
+    /**
+     * Retrieves the owner of the worker.
+     *
+     * @return The Player who owns this worker.
+     */
+    public Player getOwner() {
+        return owner;
+    }
+
+    /**
+     * Updates the worker's position on the board.
+     * This method should only be called by the Board class to maintain consistency.
+     *
+     * @param newX The new X-coordinate.
+     * @param newY The new Y-coordinate.
+     */
+    void setPosition(int newX, int newY) {
+        this.x = newX;
+        this.y = newY;
+    }
+
+    /**
+     * Retrieves the worker's current position as a Position object.
+     *
+     * @return The Position of the worker.
+     */
+    public Position getPosition() {
+        return new Position(x, y);
+    }
+
+    /**
+     * Provides a string representation of the worker.
+     *
+     * @return A string detailing the worker's owner and position.
+     */
+    @Override
+    public String toString() {
+        return String.format("Worker[Owner=%s, Position=(%d, %d)]", owner.getName(), x, y);
+    }
+
+    /**
+     * Checks if this worker is equal to another object.
+     *
+     * @param obj The object to compare with.
+     * @return True if the objects are equal; false otherwise.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Worker)) return false;
+        Worker other = (Worker) obj;
+        return this.x == other.x && this.y == other.y && this.owner.equals(other.owner);
+    }
+
+    /**
+     * Generates a hash code for the worker.
+     *
+     * @return The hash code based on the worker's position and owner.
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y, owner);
+    }
+}
+
+
+

@@ -1,0 +1,40 @@
+@startuml
+' Entities
+class Game {
+}
+
+class Player {
+    Color
+}
+
+class Worker {
+}
+
+class Grid {
+}
+
+class Cell {
+}
+
+class Tower {
+}
+
+class Block {
+}
+
+class Dome {
+}
+
+
+Game "1"*-- "2"Player : has
+Game "1"*-- "1"Grid : has
+Player o-- Worker : controls 2
+Grid "1" *-- "25"Cell : contains
+
+Cell "1" o-- "0..1" Tower : contains
+Tower "1" *-- "1..3" Block : consists of
+Tower "1" *-- "0..1"Dome : can have
+Worker "1" -- "1" Cell : moves to
+Worker "1" -- "0..1" Tower : builds
+
+@enduml

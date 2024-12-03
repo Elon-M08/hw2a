@@ -1,0 +1,51 @@
+.board {
+    display: flex;
+    flex-direction: column; /* Ensure rows stack vertically */
+    align-items: center; /* Center the board horizontally */
+    border: 5px solid #374785; /* Board border */
+    border-radius: 10px; /* Rounded corners */
+    background-color: #f0f0f0; /* Light background for the board */
+    padding: 10px;
+    margin: 20px auto; /* Center the board on the page */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+}
+
+.board-row {
+    display: flex; /* Ensure cells in a row are displayed horizontally */
+}
+
+.cell {
+    width: 60px; /* Fixed width for each cell */
+    height: 60px; /* Fixed height for each cell */
+    margin: 2px; /* Space between cells */
+    background-color: #ffffff; /* Default cell background */
+    border: 2px solid #ccc; /* Cell border */
+    display: flex;
+    justify-content: center; /* Center content horizontally */
+    align-items: center; /* Center content vertically */
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.cell:hover {
+    background-color: #ddeeff; /* Highlight cell on hover */
+    transform: scale(1.1); /* Slight zoom effect */
+}
+
+.cell-selectable {
+    background-color: #d4edda; /* Greenish background for selectable cells */
+    cursor: pointer; /* Change cursor to pointer for interactivity */
+}
+
+.tower {
+    width: 40px; /* Tower should fit inside the cell */
+    height: 40px;
+    background-size: cover; /* Ensure images fit perfectly */
+    background-position: center;
+}
+
+.worker {
+    position: absolute;
+    width: 40px; /* Worker size slightly smaller than cell */
+    height: 40px;
+    z-index: 1; /* Ensure workers appear above other elements */
+}

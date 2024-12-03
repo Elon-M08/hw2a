@@ -1,0 +1,25 @@
+/* src/assets/styles/Worker.css */
+
+.worker {
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.worker:hover {
+    transform: scale(1.1);
+}
+
+.worker-selected {
+    animation: bounce 0.5s infinite alternate;
+}
+
+@keyframes bounce {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(-10px);
+    }
+}

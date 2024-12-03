@@ -3,9 +3,10 @@ import React from 'react';
 import '../assets/styles/Worker.css';
 
 
+
 function Worker({ player, onClick, isSelected }) {
     const workerImage =
-        player === 'Player A' ? '/images/worker-blue.png' : '/images/worker-red.png';
+    player === 'Player A' ? '/images/worker-blue.png' : '/images/worker-red.png';
 
     const handleClick = (e) => {
         e.stopPropagation(); // Prevent the click event from bubbling up to the cell

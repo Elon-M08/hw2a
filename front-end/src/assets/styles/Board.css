@@ -1,0 +1,10 @@
+/* src/assets/styles/Board.css */
+.board {
+    display: inline-block;
+    border: 5px solid #374785;
+    margin-top: 20px;
+}
+
+.board-row {
+    display: flex;
+}
