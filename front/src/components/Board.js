@@ -5,7 +5,6 @@ import '../assets/styles/Board.css';
 
 function Board({ grid, onCellClick, selectableCells, selectedWorker }) {
     const boardSize = grid.length; // Should be 5 for a 5x5 grid
-
     return (
         <div className="board">
             {[...Array(boardSize)].map((_, y) => ( // Loop over rows (y)

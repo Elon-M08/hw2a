@@ -56,20 +56,13 @@ public class Board {
      * @param y      The Y-coordinate (0-based).
      * @return True if the build was successful; false otherwise.
      */
-    public boolean build(Worker worker, int x, int y) {
+    public boolean build( int x, int y) {
         if (!isWithinBounds(x, y)) {
             return false;
         }
 
         if (isOccupied(x, y)) {
             return false; // Cannot build on an occupied position
-        }
-
-        int workerX = worker.getX();
-        int workerY = worker.getY();
-
-        if (Math.abs(workerX - x) > 1 || Math.abs(workerY - y) > 1) {
-            return false; // Must build adjacent to the worker
         }
 
         // Increment height or build a dome
