@@ -64,7 +64,7 @@ function Game() {
         if (!gameState || gameEnded) return;
         setErrorMessage('');
         const { gamePhase, currentPlayer } = gameState;
-
+    
         try {
             if (gamePhase === 'PLACEMENT') {
                 // Place a worker
@@ -121,11 +121,36 @@ function Game() {
                     }
                 }
             } else if (gamePhase === 'BUILD') {
-                if (selectedWorker) {
+                const worker = gameState.workers.find(
+                    (w) =>
+                        w.position.x === x &&
+                        w.position.y === y &&
+                        w.player === currentPlayer
+                );
+    
+                if (worker) {
+                    // Select a different worker for building
+                    const workerIndex = currentPlayerWorkers.findIndex(
+                        (w) => w.position.x === x && w.position.y === y
+                    );
+                    if (workerIndex !== -1) {
+                        setSelectedWorker({ ...worker, index: workerIndex });
+                        const cells = getSelectableCellsForBuild(worker);
+                        if (cells.length === 0) {
+                            setErrorMessage('No valid build locations for this worker.');
+                            setSelectableCells([]);
+                        } else {
+                            setSelectableCells(cells);
+                        }
+                    } else {
+                        setErrorMessage('Worker index not found.');
+                    }
+                } else if (selectedWorker) {
                     // Attempt to build at the selected cell
                     if (selectableCells.some((cell) => cell.x === x && cell.y === y)) {
                         const response = await axios.post('/action', {
                             actionType: 'build',
+                            workerIndex: selectedWorker.index,
                             x,
                             y,
                         });
@@ -136,23 +161,14 @@ function Game() {
                         setErrorMessage('Invalid build location. Please select a highlighted cell.');
                     }
                 } else {
-                    // Determine where the worker can build
-                    const worker = currentPlayerWorkers[0]; // Assuming one worker is selected
-                    const cells = getSelectableCellsForBuild(worker);
-                    if (cells.length === 0) {
-                        setErrorMessage('No valid build locations.');
-                        setSelectableCells([]);
-                        setSelectedWorker(null);
-                    } else {
-                        setSelectableCells(cells);
-                        setSelectedWorker(worker);
-                    }
+                    setErrorMessage('Please select a worker to build.');
                 }
             }
         } catch (error) {
             setErrorMessage(error.response?.data?.error || 'Action failed.');
         }
     };
+    
 
     const getSelectableCellsForMove = (worker) => {
         const directions = [
