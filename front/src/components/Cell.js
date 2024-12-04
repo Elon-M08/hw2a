@@ -1,11 +1,7 @@
-// src/components/Cell.js
 import React from 'react';
 import classNames from 'classnames';
 import Worker from './Worker';
 import '../assets/styles/Cell.css';
-
-
-
 
 function Cell({ data, onClick, isSelectable, selectedWorker }) {
     const { x, y, height, worker } = data;
@@ -27,10 +23,9 @@ function Cell({ data, onClick, isSelectable, selectedWorker }) {
         selectedWorker &&
         selectedWorker.position.x === x &&
         selectedWorker.position.y === y &&
-        selectedWorker.player === worker.player;
+        selectedWorker.player === worker?.player;
 
     // Determine the tower image based on height
-    
     const towerImages = {
         1: '/images/1.png',
         2: '/images/2.png',
@@ -38,6 +33,7 @@ function Cell({ data, onClick, isSelectable, selectedWorker }) {
         4: '/images/dome.png',
     };
     const towerImage = towerImages[height] || null;
+
     return (
         <div className={cellClass} onClick={handleCellClick}>
             {/* Render tower based on height */}
@@ -58,6 +54,5 @@ function Cell({ data, onClick, isSelectable, selectedWorker }) {
         </div>
     );
 }
-
 
 export default Cell;
