@@ -9,6 +9,7 @@ axios.defaults.baseURL = 'http://localhost:8080';
 
 function Game() {
     const [gameState, setGameState] = useState(null);
+    const [awaitingPreMoveBuildDecision, setAwaitingPreMoveBuildDecision] = useState(false);
     const [selectableCells, setSelectableCells] = useState([]);
     const [selectedWorker, setSelectedWorker] = useState(null);
     const [currentPlayerWorkers, setCurrentPlayerWorkers] = useState([]);
