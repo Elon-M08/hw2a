@@ -9,6 +9,7 @@ import org.example.gods.*;
 public class Game {
     private Player playerA;
     private Player playerB;
+    private String winner; 
     private Board board;
     private Player currentPlayer;
     private boolean gameEnded = false;
@@ -63,7 +64,21 @@ public class Game {
         }
         return false;
     }
+    public void setPreviousHeight(Worker worker, int height) {
+        previousHeights.put(worker, height);
+    }
     
+    public int getPreviousHeight(Worker worker) {
+        return previousHeights.getOrDefault(worker, 0);
+    }
+
+    public void setWinner(String winner) {
+        this.winner = winner;
+    }
+
+    public String getWinner() {
+        return winner;
+    }
     public List<Map<String, Integer>> getSelectableMoveCells(int workerIndex) throws Exception {
         if (gameEnded) {
             throw new Exception("Game has ended.");
@@ -153,10 +168,12 @@ public class Game {
         if (currentPlayer.getGodStrategy().checkVictory(this, selectedWorker)) {
             System.out.println(currentPlayer.getName() + " wins!");
             gameEnded = true;
+            winner = currentPlayer.getName();
             return true;
         }
 
-        currentPhase = GamePhase.BUILD;
+        // Let the strategy determine the next phase
+        currentPlayer.getGodStrategy().nextPhase(this);
         return true;
     }
 
@@ -178,10 +195,11 @@ public class Game {
             throw new Exception("Invalid build. Try again.");
         }
 
-        selectedWorker = null;
-        currentPhase = GamePhase.MOVE;
-        switchPlayer();
+        // Let the strategy determine the next phase
+        currentPlayer.getGodStrategy().nextPhase(this);
+
         return true;
+    
     }
 
     public Board getBoard() {
@@ -219,6 +237,14 @@ public class Game {
         }
         return true;
     }
+     // Add setters for currentPhase and selectedWorker
+     public void setCurrentPhase(GamePhase phase) {
+        this.currentPhase = phase;
+    }
+
+    public void setSelectedWorker(Worker worker) {
+        this.selectedWorker = worker;
+    }
 
     public boolean defaultBuild(Worker worker, int x, int y) throws Exception {
         boolean buildSuccess = board.build(x, y);
@@ -240,9 +266,7 @@ public class Game {
         return false;
     }
 
-    public int getPreviousHeight(Worker worker) {
-        return previousHeights.getOrDefault(worker, 0);
-    }
+
     public Player getPlayerA() {
         return playerA;
     }

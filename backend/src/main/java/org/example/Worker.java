@@ -60,7 +60,7 @@ public class Worker {
      * @param newX The new X-coordinate.
      * @param newY The new Y-coordinate.
      */
-    void setPosition(int newX, int newY) {
+    public void setPosition(int newX, int newY) {
         this.x = newX;
         this.y = newY;
     }

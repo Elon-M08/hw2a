@@ -121,7 +121,8 @@ public Response serve(IHTTPSession session) {
         state.put("status", status);
         state.put("playerAGod", game.getPlayerA().getGodStrategy().getName());
         state.put("playerBGod", game.getPlayerB().getGodStrategy().getName());
-    
+        state.put("strategyState", game.getCurrentPlayer().getGodStrategy().getStrategyState()); // Added line
+
         return createJsonResponse(Response.Status.OK, state);
     }
     
@@ -217,12 +218,17 @@ public Response serve(IHTTPSession session) {
         state.put("currentPlayer", game.getCurrentPlayer().getName());
         state.put("gamePhase", game.getCurrentPhase().toString());
         state.put("gameEnded", game.isGameEnded());
-        String status = game.isGameEnded() ? game.getCurrentPlayer().getName() + " Wins!" : "In Progress";
+        String status = game.isGameEnded() ? game.getWinner() + " Wins!" : "In Progress";
         state.put("status", status);
+        state.put("winner", game.getWinner()); // Add this line
         state.put("playerAGod", game.getPlayerA().getGodStrategy().getName());
         state.put("playerBGod", game.getPlayerB().getGodStrategy().getName());
+        state.put("strategyState", game.getCurrentPlayer().getGodStrategy().getStrategyState());
+        state.put("currentPlayerGod", game.getCurrentPlayer().getGodStrategy().getName());
         return createJsonResponse(Response.Status.OK, state);
     }
+    
+    
     
 
     private List<List<Map<String, Object>>> serializeGrid() {

@@ -21,15 +21,19 @@ function Game() {
     const [playerBGod, setPlayerBGod] = useState('');
     const [isGameStarted, setIsGameStarted] = useState(false);
 
+    const [strategyState, setStrategyState] = useState({});
+    const [awaitingSecondBuildDecision, setAwaitingSecondBuildDecision] = useState(false);
+    const [currentPlayerGod, setCurrentPlayerGod] = useState('');
+
     useEffect(() => {
         if (gameState) {
-            const { currentPlayer, workers, gameEnded } = gameState;
+            const { currentPlayer, workers, gameEnded, winner: gameWinner, strategyState: gs, currentPlayerGod: god } = gameState;
             const playerWorkers = workers.filter((w) => w.player === currentPlayer);
             setCurrentPlayerWorkers(playerWorkers);
 
             if (gameEnded) {
                 setGameEnded(true);
-                setWinner(currentPlayer);
+                setWinner(gameWinner);
             } else {
                 setGameEnded(false);
                 setWinner(null);
@@ -38,8 +42,22 @@ function Game() {
             // Reset selections when the game state updates
             setSelectableCells([]);
             setSelectedWorker(null);
+
+            // Update strategyState
+            setStrategyState(gs || {});
+
+            // Check if we need to prompt for extra build
+            if (gs && gs.extraBuildAvailable) {
+                setAwaitingSecondBuildDecision(true);
+            } else {
+                setAwaitingSecondBuildDecision(false);
+            }
+
+            // Store current player's God
+            setCurrentPlayerGod(god);
         }
     }, [gameState]);
+    
 
     const startNewGame = async () => {
         setLoading(true);
@@ -80,7 +98,7 @@ function Game() {
         if (!gameState || gameEnded) return;
         setErrorMessage('');
         const { gamePhase, currentPlayer } = gameState;
-    
+
         try {
             if (gamePhase === 'PLACEMENT') {
                 // Place a worker
@@ -148,8 +166,21 @@ function Game() {
                             y,
                         });
                         setGameState(response.data);
-                        setSelectableCells([]);
-                        setSelectedWorker(null);
+    
+                        // Update strategyState
+                        const gs = response.data.strategyState || {};
+                        setStrategyState(gs);
+    
+                        // Check if the strategy indicates extra builds are available
+                        if (gs.extraBuildAvailable) {
+                            // The strategy indicates that an extra build is available
+                            setAwaitingSecondBuildDecision(true);
+                            setSelectableCells([]);
+                        } else {
+                            // Proceed to next phase
+                            setSelectableCells([]);
+                            setSelectedWorker(null);
+                        }
                     } else {
                         setErrorMessage('Invalid build location. Please select a highlighted cell.');
                     }
@@ -187,7 +218,39 @@ function Game() {
             setErrorMessage(error.response?.data?.error || 'Action failed.');
         }
     };
-    
+    const handleSecondBuildYes = async () => {
+        try {
+            // Fetch selectable build cells for the second build
+            const response = await axios.get('/selectable-build-cells', {
+                params: { workerIndex: selectedWorker.index },
+            });
+            const cells = response.data.selectableCells;
+            if (cells.length === 0) {
+                setErrorMessage('No valid build locations for second build.');
+                // Inform the backend that the player ends their turn
+                await axios.post('/action', { actionType: 'endTurn' });
+                // Fetch updated game state
+                const gameStateResponse = await axios.get('/game-state');
+                setGameState(gameStateResponse.data);
+            } else {
+                setSelectableCells(cells);
+            }
+            setAwaitingSecondBuildDecision(false);
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to get selectable build cells.');
+        }
+    };
+
+    const handleSecondBuildNo = async () => {
+        try {
+            // Inform the backend that the player ends their turn
+            const response = await axios.post('/action', { actionType: 'endTurn' });
+            setGameState(response.data);
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to end turn.');
+        }
+        setAwaitingSecondBuildDecision(false);
+    };
     
 
     return (
@@ -217,6 +280,30 @@ function Game() {
                                 selectableCells={selectableCells}
                                 selectedWorker={selectedWorker}
                             />
+                            {awaitingSecondBuildDecision && (
+                                <div className="decision-modal">
+                                    <div className="modal-content">
+                                        {currentPlayerGod === 'Demeter' && (
+                                            <>
+                                                <h2>Demeter's Power</h2>
+                                                <p>
+                                                    You may build one additional time (not on the same space). Do you want to build again?
+                                                </p>
+                                            </>
+                                        )}
+                                        {currentPlayerGod === 'Hephaestus' && (
+                                            <>
+                                                <h2>Hephaestus's Power</h2>
+                                                <p>
+                                                    You may build one additional block on top of your first block. Do you want to build again?
+                                                </p>
+                                            </>
+                                        )}
+                                        <button onClick={handleSecondBuildYes}>Yes</button>
+                                        <button onClick={handleSecondBuildNo}>No</button>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                 </>

@@ -193,6 +193,27 @@ public class Board {
         return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
     }
 
+
+    public boolean forceMoveWorker(int fromX, int fromY, int toX, int toY) {
+        if (!isWithinBounds(fromX, fromY) || !isWithinBounds(toX, toY)) {
+            return false;
+        }
+
+        Worker worker = workers[fromX][fromY];
+        if (worker == null) {
+            return false; // No worker to move
+        }
+
+        if (workers[toX][toY] != null) {
+            return false; // Target position must be unoccupied
+        }
+
+        workers[toX][toY] = worker;
+        workers[fromX][fromY] = null;
+        worker.setPosition(toX, toY);
+        return true;
+    }
+
     /**
      * Provides a string representation of the board for debugging.
      */
