@@ -9,19 +9,33 @@ function Board({ grid, onCellClick, selectableCells, selectedWorker }) {
         <div className="board">
             {[...Array(boardSize)].map((_, y) => ( // Loop over rows (y)
                 <div key={y} className="board-row">
-                    {[...Array(boardSize)].map((_, x) => ( // Loop over columns (x)
-                        <Cell
-                            key={`${x}-${y}`}
-                            x={x}
-                            y={y}
-                            data={grid[x][y]} // Access grid[x][y]
-                            onClick={onCellClick}
-                            isSelectable={selectableCells.some(
-                                (cell) => cell.x === x && cell.y === y
-                            )}
-                            selectedWorker={selectedWorker}
-                        />
-                    ))}
+                    {[...Array(boardSize)].map((_, x) => {
+                        const cellData = grid[x][y];
+                        return (
+                            <Cell
+                                key={`${x}-${y}`}
+                                x={x}
+                                y={y}
+                                data={{
+                                    x,
+                                    y,
+                                    height: cellData.height,
+                                    worker: cellData.worker
+                                        ? {
+                                              id: cellData.worker.id,
+                                              player: cellData.worker.player,
+                                              position: cellData.worker.position,
+                                          }
+                                        : null,
+                                }}
+                                onClick={onCellClick}
+                                isSelectable={selectableCells.some(
+                                    (cell) => cell.x === x && cell.y === y
+                                )}
+                                selectedWorker={selectedWorker}
+                            />
+                        );
+                    })}
                 </div>
             ))}
         </div>

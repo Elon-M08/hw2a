@@ -1,10 +1,23 @@
+// src/main/java/org/example/gods/PanGodStrategy.java
 package org.example.gods;
 
+import org.example.Board;
 import org.example.Game;
 import org.example.Worker;
-import java.util.*;
 
-public class PanGodStrategy implements GodStrategy {
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
+
+/**
+ * Pan's Strategy Implementation.
+ * Pan allows a player to win by moving down two or more levels in a single move, in addition to the standard victory condition of reaching level 3.
+ */
+public class PanGodStrategy extends DefaultGodStrategy {
+    private static final Logger logger = Logger.getLogger(PanGodStrategy.class.getName());
+
+    // Tracks the last move's height difference
+    private int lastMoveHeightDifference = 0;
 
     @Override
     public String getName() {
@@ -12,74 +25,81 @@ public class PanGodStrategy implements GodStrategy {
     }
 
     @Override
+    public Map<String, Object> getStrategyState() {
+        Map<String, Object> state = super.getStrategyState();
+        state.put("lastMoveHeightDifference", lastMoveHeightDifference);
+        return state;
+    }
+
+    /**
+     * Overrides the move method to track height differences for Pan's victory condition.
+     */
+    @Override
     public boolean move(Game game, Worker worker, int x, int y) throws Exception {
+        logger.info(getName() + " Strategy: move called from (" + worker.getX() + ", " + worker.getY() + ") to (" + x + ", " + y + ")");
+
+        Board board = game.getBoard();
         int fromX = worker.getX();
         int fromY = worker.getY();
-        int fromHeight = game.getBoard().getTowerHeight(fromX, fromY);
 
-        // Perform the default move
-        boolean moveSuccess = game.defaultMoveWorker(worker, x, y);
+        // Get current height before move
+        int currentHeight = board.getTowerHeight(fromX, fromY);
+
+        // Perform the move using the superclass's move method
+        boolean moveSuccess = super.move(game, worker, x, y);
         if (!moveSuccess) {
+            logger.warning(getName() + " Strategy: Move failed.");
             throw new Exception("Invalid move. Try again.");
         }
 
-        int toHeight = game.getBoard().getTowerHeight(x, y);
-        game.setPreviousHeight(worker, fromHeight);
+        // Get new height after move
+        int newHeight = board.getTowerHeight(x, y);
 
-        if (fromHeight - toHeight >= 2) {
-            game.setGameEnded(true);
-            game.setWinner(worker.getOwner().getName());
-        }
+        // Calculate height difference
+        lastMoveHeightDifference = newHeight - currentHeight;
+        strategyState.put("lastMoveHeightDifference", lastMoveHeightDifference);
+
+        logger.info(getName() + " Strategy: Move completed with height difference of " + lastMoveHeightDifference);
 
         return true;
     }
 
-    @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        return game.defaultBuild(worker, x, y);
-    }
-
-    @Override
-    public void nextPhase(Game game) throws Exception {
-        if (game.isGameEnded()) return;
-
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            game.setCurrentPhase(Game.GamePhase.BUILD);
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
-            game.switchPlayer();
-        }
-    }
-
+    /**
+     * Overrides the checkVictory method to include Pan's special victory condition.
+     */
     @Override
     public boolean checkVictory(Game game, Worker worker) throws Exception {
-        int previousHeight = game.getPreviousHeight(worker);
-        int currentHeight = game.getBoard().getTowerHeight(worker.getX(), worker.getY());
+        Board board = game.getBoard();
+        int currentHeight = board.getTowerHeight(worker.getX(), worker.getY());
 
-        if (previousHeight - currentHeight >= 2) {
-            game.setGameEnded(true);
-            game.setWinner(worker.getOwner().getName());
+        // Standard victory condition: Reached level 3
+        boolean standardVictory = currentHeight == 3;
+
+        // Pan's special victory condition: Moved down two or more levels
+        boolean panVictory = lastMoveHeightDifference <= -2;
+
+        if (standardVictory || panVictory) {
+            logger.info(getName() + " Strategy: Victory condition met. standardVictory: " + standardVictory + ", panVictory: " + panVictory);
             return true;
         }
 
-        return game.defaultCheckVictory(worker);
+        logger.info(getName() + " Strategy: Victory condition not met. standardVictory: " + standardVictory + ", panVictory: " + panVictory);
+        return false;
     }
 
     @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        DefaultGodStrategy defaultStrategy = new DefaultGodStrategy();
-        return defaultStrategy.getSelectableMoveCells(game, worker);
+    public void playerEndsTurn(Game game) throws Exception {
+        logger.info(getName() + " Strategy: playerEndsTurn called.");
+        // Reset Pan's last move height difference
+        lastMoveHeightDifference = 0;
+        strategyState.put("lastMoveHeightDifference", lastMoveHeightDifference);
+        // Delegate to superclass to handle any additional reset logic
+        super.playerEndsTurn(game);
     }
 
     @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
-        DefaultGodStrategy defaultStrategy = new DefaultGodStrategy();
-        return defaultStrategy.getSelectableBuildCells(game, worker);
-    }
-
-    @Override
-    public Map<String, Object> getStrategyState() {
-        return null; // Pan does not maintain extra state
+    public void setCannotMoveUp(boolean cannotMoveUp) {
+        // Pan's strategy does not utilize this method
+        // Do nothing
     }
 }

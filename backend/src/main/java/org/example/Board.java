@@ -1,3 +1,4 @@
+// src/main/java/org/example/Board.java
 package org.example;
 
 import java.util.Objects;
@@ -49,14 +50,46 @@ public class Board {
     }
 
     /**
-     * Builds a block or dome at the specified position.
+     * Sets the height of the tower at the specified position.
      *
-     * @param worker The worker initiating the build.
      * @param x      The X-coordinate (0-based).
      * @param y      The Y-coordinate (0-based).
+     * @param height The new height to set (should be between 0 and 4).
+     * @throws IllegalArgumentException If the height is out of valid range or position is out of bounds.
+     */
+    public void setTowerHeight(int x, int y, int height) {
+        if (!isWithinBounds(x, y)) {
+            throw new IllegalArgumentException("Coordinates out of bounds.");
+        }
+        if (height < 0 || height > MAX_HEIGHT) {
+            throw new IllegalArgumentException("Height must be between 0 and 4.");
+        }
+        grid[x][y] = height;
+    }
+
+    /**
+     * Checks if two positions are adjacent on the board.
+     *
+     * @param x1 The X-coordinate of the first position.
+     * @param y1 The Y-coordinate of the first position.
+     * @param x2 The X-coordinate of the second position.
+     * @param y2 The Y-coordinate of the second position.
+     * @return True if positions are adjacent; false otherwise.
+     */
+    public boolean isAdjacent(int x1, int y1, int x2, int y2) {
+        int dx = Math.abs(x1 - x2);
+        int dy = Math.abs(y1 - y2);
+        return (dx <= 1 && dy <= 1) && !(dx == 0 && dy == 0);
+    }
+
+    /**
+     * Builds a block or dome at the specified position.
+     *
+     * @param x The X-coordinate (0-based).
+     * @param y The Y-coordinate (0-based).
      * @return True if the build was successful; false otherwise.
      */
-    public boolean build( int x, int y) {
+    public boolean build(int x, int y) {
         if (!isWithinBounds(x, y)) {
             return false;
         }
@@ -160,6 +193,36 @@ public class Board {
     }
 
     /**
+     * Swaps two workers on the board.
+     *
+     * @param worker1 The first worker.
+     * @param worker2 The second worker.
+     * @return True if the swap was successful; false otherwise.
+     */
+    public boolean swapWorkers(Worker worker1, Worker worker2) {
+        if (worker1 == null || worker2 == null) {
+            return false;
+        }
+
+        int x1 = worker1.getX();
+        int y1 = worker1.getY();
+        int x2 = worker2.getX();
+        int y2 = worker2.getY();
+
+        if (!isWithinBounds(x1, y1) || !isWithinBounds(x2, y2)) {
+            return false;
+        }
+
+        workers[x1][y1] = worker2;
+        workers[x2][y2] = worker1;
+
+        worker1.setPosition(x2, y2);
+        worker2.setPosition(x1, y1);
+
+        return true;
+    }
+
+    /**
      * Resets the board to its initial state.
      */
     public void resetBoard() {
@@ -193,27 +256,6 @@ public class Board {
         return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
     }
 
-
-    public boolean forceMoveWorker(int fromX, int fromY, int toX, int toY) {
-        if (!isWithinBounds(fromX, fromY) || !isWithinBounds(toX, toY)) {
-            return false;
-        }
-
-        Worker worker = workers[fromX][fromY];
-        if (worker == null) {
-            return false; // No worker to move
-        }
-
-        if (workers[toX][toY] != null) {
-            return false; // Target position must be unoccupied
-        }
-
-        workers[toX][toY] = worker;
-        workers[fromX][fromY] = null;
-        worker.setPosition(toX, toY);
-        return true;
-    }
-
     /**
      * Provides a string representation of the board for debugging.
      */
@@ -239,7 +281,7 @@ public class Board {
         if (!(obj instanceof Board)) return false;
         Board other = (Board) obj;
         return Arrays.deepEquals(this.grid, other.grid) &&
-                Arrays.deepEquals(this.workers, other.workers);
+               Arrays.deepEquals(this.workers, other.workers);
     }
 
     /**

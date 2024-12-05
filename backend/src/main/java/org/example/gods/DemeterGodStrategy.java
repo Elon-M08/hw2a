@@ -1,14 +1,27 @@
+// src/main/java/org/example/gods/DemeterGodStrategy.java 
 package org.example.gods;
 
-import org.example.Board;
 import org.example.Game;
 import org.example.Worker;
+import org.example.Board;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
 
-public class DemeterGodStrategy implements GodStrategy {
-    private Map<String, Integer> firstBuildPosition = null;
-    private boolean extraBuildAvailable = false;
+/**
+ * Demeter's Strategy Implementation.
+ * Demeter allows building twice on different cells.
+ */
+public class DemeterGodStrategy extends DefaultGodStrategy {
+    private static final Logger logger = Logger.getLogger(DemeterGodStrategy.class.getName());
+    
+    // Tracks if the player has already built once
+    private boolean hasBuiltOnce = false;
+    
+    // Stores the coordinates of the first build to ensure the second build is on a different cell
+    private int firstBuildX = -1;
+    private int firstBuildY = -1;
 
     @Override
     public String getName() {
@@ -16,107 +29,123 @@ public class DemeterGodStrategy implements GodStrategy {
     }
 
     @Override
-    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
-        // Use default move logic
-        return game.defaultMoveWorker(worker, x, y);
-    }
-
-    @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        Board board = game.getBoard();
-
-        if (board.isOccupied(x, y) || board.getTowerHeight(x, y) >= 4) {
-            throw new Exception("Invalid build location.");
-        }
-
-        if (firstBuildPosition == null) {
-            // First build
-            boolean success = game.defaultBuild(worker, x, y);
-            if (success) {
-                firstBuildPosition = Map.of("x", x, "y", y);
-                extraBuildAvailable = true;
-            }
-            return success;
-        } else {
-            // Second build
-            if (firstBuildPosition.get("x") == x && firstBuildPosition.get("y") == y) {
-                throw new Exception("Cannot build on the same space as the first build.");
-            }
-            boolean success = game.defaultBuild(worker, x, y);
-            if (success) {
-                extraBuildAvailable = false;
-                firstBuildPosition = null;
-            }
-            return success;
-        }
-    }
-
-    @Override
-    public void nextPhase(Game game) throws Exception {
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            game.setCurrentPhase(Game.GamePhase.BUILD);
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            if (extraBuildAvailable) {
-                // Remain in BUILD phase; wait for player's decision
-            } else {
-                // End turn
-                game.setSelectedWorker(null);
-                game.setCurrentPhase(Game.GamePhase.MOVE);
-                game.switchPlayer();
-            }
-        }
-    }
-
-    @Override
     public Map<String, Object> getStrategyState() {
-        Map<String, Object> state = new HashMap<>();
-        state.put("extraBuildAvailable", extraBuildAvailable);
+        Map<String, Object> state = super.getStrategyState();
+        state.put("hasBuiltOnce", hasBuiltOnce);
+        state.put("firstBuildX", firstBuildX);
+        state.put("firstBuildY", firstBuildY);
+        // Indicate if an extra build is available
+        state.put("extraBuildAvailable", hasBuiltOnce);
         return state;
     }
 
+    /**
+     * Overrides the build method to allow Demeter to build twice on different cells.
+     */
     @Override
-    public boolean checkVictory(Game game, Worker worker) throws Exception {
-        return game.defaultCheckVictory(worker);
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        return new DefaultGodStrategy().getSelectableMoveCells(game, worker);
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
-        List<Map<String, Integer>> selectableCells = new ArrayList<>();
-        int x = worker.getX();
-        int y = worker.getY();
-
-        int[][] directions = {
-            {-1, -1}, {-1, 0}, {-1, 1},
-            { 0, -1},         { 0, 1},
-            { 1, -1}, { 1, 0}, { 1, 1}
-        };
-
-        for (int[] dir : directions) {
-            int buildX = x + dir[0];
-            int buildY = y + dir[1];
-
-            if (!game.getBoard().isWithinBounds(buildX, buildY)) {
-                continue;
-            }
-
-            if (game.getBoard().isOccupied(buildX, buildY) || game.getBoard().getTowerHeight(buildX, buildY) >= 4) {
-                continue;
-            }
-
-            if (firstBuildPosition != null && firstBuildPosition.get("x") == buildX && firstBuildPosition.get("y") == buildY) {
-                continue;
-            }
-
-            Map<String, Integer> cell = Map.of("x", buildX, "y", buildY);
-            selectableCells.add(cell);
+    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
+        logger.info(getName() + " Strategy: build called at (" + x + ", " + y + ")");
+        
+        Board board = game.getBoard();
+        
+        // Validate build position
+        if (!board.isAdjacent(worker.getX(), worker.getY(), x, y)) {
+            logger.warning(getName() + " Strategy: Build position must be adjacent.");
+            throw new Exception("Build position must be adjacent.");
         }
-
-        return selectableCells;
+        
+        if (board.isOccupied(x, y)) {
+            logger.warning(getName() + " Strategy: Cannot build on an occupied space.");
+            throw new Exception("Cannot build on an occupied space.");
+        }
+        
+        if (board.getTowerHeight(x, y) >= 4) {
+            logger.warning(getName() + " Strategy: Cannot build beyond height 4.");
+            throw new Exception("Cannot build beyond height 4.");
+        }
+        
+        if (hasBuiltOnce) {
+            // Ensure the second build is on a different cell
+            if (x == firstBuildX && y == firstBuildY) {
+                logger.warning(getName() + " Strategy: Second build must be on a different cell.");
+                throw new Exception("Second build must be on a different cell.");
+            }
+        }
+        
+        // Perform the build using the superclass's build method
+        boolean buildSuccess = super.build(game, worker, x, y);
+        if (!buildSuccess) {
+            logger.warning(getName() + " Strategy: Build failed.");
+            return false;
+        }
+        
+        if (!hasBuiltOnce) {
+            // Mark that the first build has been completed
+            hasBuiltOnce = true;
+            firstBuildX = x;
+            firstBuildY = y;
+            strategyState.put("hasBuiltOnce", true);
+            strategyState.put("firstBuildX", firstBuildX);
+            strategyState.put("firstBuildY", firstBuildY);
+            strategyState.put("extraBuildAvailable", true);
+            logger.info(getName() + " Strategy: First build completed at (" + x + ", " + y + "), second build available.");
+        } else {
+            // Second build completed, reset build state
+            hasBuiltOnce = false;
+            firstBuildX = -1;
+            firstBuildY = -1;
+            strategyState.put("hasBuiltOnce", false);
+            strategyState.put("firstBuildX", firstBuildX);
+            strategyState.put("firstBuildY", firstBuildY);
+            strategyState.put("extraBuildAvailable", false);
+            logger.info(getName() + " Strategy: Second build completed at (" + x + ", " + y + ").");
+        }
+        
+        return true;
     }
 
+    /**
+     * Overrides the nextPhase method to handle phase transitions based on build state.
+     */
+    @Override
+    public void nextPhase(Game game) throws Exception {
+        logger.info(getName() + " Strategy: nextPhase called.");
+        
+        if (hasBuiltOnce) {
+            // Awaiting second build, keep the phase as BUILD
+            game.setCurrentPhase(Game.GamePhase.BUILD);
+            logger.info(getName() + " Strategy: Awaiting second build. Phase remains BUILD.");
+        } else {
+            // All builds completed, proceed to move phase
+            super.nextPhase(game);
+            logger.info(getName() + " Strategy: Proceeding to move phase.");
+        }
+    }
+
+    /**
+     * Overrides the playerEndsTurn method to reset Demeter's build state.
+     */
+    @Override
+    public void playerEndsTurn(Game game) throws Exception {
+        logger.info(getName() + " Strategy: playerEndsTurn called.");
+        // Reset Demeter's build state
+        hasBuiltOnce = false;
+        firstBuildX = -1;
+        firstBuildY = -1;
+        strategyState.put("hasBuiltOnce", false);
+        strategyState.put("firstBuildX", firstBuildX);
+        strategyState.put("firstBuildY", firstBuildY);
+        strategyState.put("extraBuildAvailable", false);
+        // Delegate to superclass to handle any additional reset logic
+        super.playerEndsTurn(game);
+    }
+
+    /**
+     * Demeter's strategy does not utilize the setCannotMoveUp method.
+     */
+    @Override
+    public void setCannotMoveUp(boolean cannotMoveUp) {
+        // Demeter's strategy does not utilize this method
+        // Do nothing
+    }
 }

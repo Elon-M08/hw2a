@@ -1,3 +1,4 @@
+// src/main/java/org/example/gods/App.java
 package org.example;
 
 import fi.iki.elonen.NanoHTTPD;
@@ -6,7 +7,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.*;
-import org.example.gods.*;
+import java.util.stream.Collectors;
+import org.example.gods.*; // Ensure all strategy classes are imported
 
 public class App extends NanoHTTPD {
 
@@ -18,7 +20,6 @@ public class App extends NanoHTTPD {
         start(SOCKET_READ_TIMEOUT, false);
         System.out.println("Server running at http://localhost:8080/");
     }
-    
 
     public static void main(String[] args) {
         try {
@@ -29,37 +30,36 @@ public class App extends NanoHTTPD {
     }
 
     @Override
-public Response serve(IHTTPSession session) {
-    String uri = session.getUri();
-    Method method = session.getMethod();
+    public Response serve(IHTTPSession session) {
+        String uri = session.getUri();
+        Method method = session.getMethod();
 
-    try {
-        if (uri.equals("/") || uri.startsWith("/static/")) {
-            return addCORSHeaders(serveStaticFile(uri));
-        } else if (method == Method.POST && uri.equals("/start-game")) {
-            return addCORSHeaders(handleStartGame(session));
-        } else if (method == Method.GET && uri.equals("/game-state")) {
-            return addCORSHeaders(handleGetGameState());
-        } 
-        else if (method == Method.GET && uri.equals("/selectable-move-cells")) {
-            return addCORSHeaders(handleGetSelectableMoveCells(session));
-        } else if (method == Method.GET && uri.equals("/selectable-build-cells")) {
-            return addCORSHeaders(handleGetSelectableBuildCells(session));
+        try {
+            if (uri.equals("/") || uri.startsWith("/static/")) {
+                return addCORSHeaders(serveStaticFile(uri));
+            } else if (method == Method.POST && uri.equals("/start-game")) {
+                return addCORSHeaders(handleStartGame(session));
+            } else if (method == Method.GET && uri.equals("/game-state")) {
+                return addCORSHeaders(handleGetGameState());
+            } 
+            else if (method == Method.GET && uri.equals("/selectable-move-cells")) {
+                return addCORSHeaders(handleGetSelectableMoveCells(session));
+            } else if (method == Method.GET && uri.equals("/selectable-build-cells")) {
+                return addCORSHeaders(handleGetSelectableBuildCells(session));
+            }
+            else if (method == Method.POST && uri.equals("/action")) {
+                return addCORSHeaders(handleAction(session));
+            } else if (method == Method.OPTIONS) {
+                // Handle CORS preflight requests
+                return addCORSHeaders(newFixedLengthResponse(Response.Status.OK, "text/plain", ""));
+            } else {
+                return addCORSHeaders(createJsonResponse(Response.Status.NOT_FOUND, Map.of("error", "Endpoint not found")));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return addCORSHeaders(createJsonResponse(Response.Status.INTERNAL_ERROR, Map.of("error", e.getMessage())));
         }
-        
-        else if (method == Method.POST && uri.equals("/action")) {
-            return addCORSHeaders(handleAction(session));
-        } else if (method == Method.OPTIONS) {
-            // Handle CORS preflight requests
-            return addCORSHeaders(newFixedLengthResponse(Response.Status.OK, "text/plain", ""));
-        } else {
-            return addCORSHeaders(createJsonResponse(Response.Status.NOT_FOUND, Map.of("error", "Endpoint not found")));
-        }
-    } catch (Exception e) {
-        e.printStackTrace();
-        return addCORSHeaders(createJsonResponse(Response.Status.INTERNAL_ERROR, Map.of("error", e.getMessage())));
     }
-}
 
     private GodStrategy createGodStrategy(String godName) {
         switch (godName.toLowerCase()) {
@@ -71,44 +71,63 @@ public Response serve(IHTTPSession session) {
                 return new MinotaurGodStrategy();
             case "pan":
                 return new PanGodStrategy();
+            case "apollo":
+                return new ApolloGodStrategy();
+            case "artemis":
+                return new ArtemisGodStrategy();
+            case "athena":
+                return new AthenaGodStrategy();
+            // case "prometheus":
+            //     return new PrometheusGodStrategy(); // Uncomment if needed
+            // case "atlas":
+            //     return new AtlasGodStrategy(); // Uncomment if needed
+            case "hermes":
+                return new HermesGodStrategy();
             default:
                 return new DefaultGodStrategy(); // Use default strategy if invalid
         }
     }
-    
-    private Response handleStartGame(IHTTPSession session) {
+
+    private Response handleStartGame(IHTTPSession session) throws Exception {
         Map<String, String> postData = new HashMap<>();
         try {
             session.parseBody(postData);
         } catch (ResponseException | IOException e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Error parsing request body: " + e.getMessage()));
+            throw new Exception("Error parsing request body: " + e.getMessage());
         }
-    
+
         String jsonBody = postData.get("postData");
         if (jsonBody == null || jsonBody.isEmpty()) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Empty request body."));
+            throw new Exception("Empty request body.");
         }
-    
+
         JSONObject json;
         try {
             json = new JSONObject(jsonBody);
         } catch (Exception e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Invalid JSON format."));
+            throw new Exception("Invalid JSON format.");
         }
-    
+
         String playerAGod = json.optString("playerAGod", "").toLowerCase();
         String playerBGod = json.optString("playerBGod", "").toLowerCase();
-    
+
         // Validate and create GodStrategy instances
         GodStrategy playerAStrategy = createGodStrategy(playerAGod);
         GodStrategy playerBStrategy = createGodStrategy(playerBGod);
-    
-        if (playerAStrategy == null || playerBStrategy == null) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Invalid God names provided."));
+
+        // Check if both gods are valid (i.e., not DefaultGodStrategy)
+        if (playerAGod.isEmpty() || playerBGod.isEmpty()) {
+            throw new Exception("God names cannot be empty.");
         }
-    
+
+        // Optionally, check if gods are unique or allow duplicates
+        // For example, to prevent both players from having the same god:
+        if (playerAGod.equals(playerBGod)) {
+            throw new Exception("Both players cannot have the same God.");
+        }
+
         this.game = new Game(playerAStrategy, playerBStrategy);
-    
+
         // Prepare the game state to return
         Map<String, Object> state = new HashMap<>();
         state.put("message", "Game started with chosen Gods.");
@@ -117,100 +136,102 @@ public Response serve(IHTTPSession session) {
         state.put("currentPlayer", game.getCurrentPlayer().getName());
         state.put("gamePhase", game.getCurrentPhase().toString());
         state.put("gameEnded", game.isGameEnded());
-        String status = game.isGameEnded() ? game.getCurrentPlayer().getName() + " Wins!" : "In Progress";
+        String status = game.isGameEnded() ? game.getWinner() + " Wins!" : "In Progress";
         state.put("status", status);
         state.put("playerAGod", game.getPlayerA().getGodStrategy().getName());
         state.put("playerBGod", game.getPlayerB().getGodStrategy().getName());
-        state.put("strategyState", game.getCurrentPlayer().getGodStrategy().getStrategyState()); // Added line
+
+        // Ensure strategyState is never null
+        Map<String, Object> strategyState = game.getCurrentPlayer().getGodStrategy().getStrategyState();
+        if (strategyState == null) {
+            strategyState = new HashMap<>();
+        }
+        state.put("strategyState", strategyState);
+
+        state.put("currentPlayerGod", game.getCurrentPlayer().getGodStrategy().getName());
 
         return createJsonResponse(Response.Status.OK, state);
     }
-    
-    private Response handleGetSelectableBuildCells(IHTTPSession session) {
+
+    private Response handleGetSelectableBuildCells(IHTTPSession session) throws Exception {
         Map<String, String> params = session.getParms();
         int workerIndex = Integer.parseInt(params.get("workerIndex"));
-    
-        try {
-            List<Map<String, Integer>> selectableCells = game.getSelectableBuildCells(workerIndex);
-            Map<String, Object> response = new HashMap<>();
-            response.put("selectableCells", selectableCells);
-            return createJsonResponse(Response.Status.OK, response);
-        } catch (Exception e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", e.getMessage()));
-        }
+
+        List<Map<String, Integer>> selectableCells = game.getSelectableBuildCells(workerIndex);
+        Map<String, Object> response = new HashMap<>();
+        response.put("selectableCells", selectableCells);
+        return createJsonResponse(Response.Status.OK, response);
     }
-    
-    private Response handleGetSelectableMoveCells(IHTTPSession session) {
+
+    private Response handleGetSelectableMoveCells(IHTTPSession session) throws Exception {
         Map<String, String> params = session.getParms();
         int workerIndex = Integer.parseInt(params.get("workerIndex"));
-    
-        try {
-            List<Map<String, Integer>> selectableCells = game.getSelectableMoveCells(workerIndex);
-            Map<String, Object> response = new HashMap<>();
-            response.put("selectableCells", selectableCells);
-            return createJsonResponse(Response.Status.OK, response);
-        } catch (Exception e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", e.getMessage()));
-        }
+
+        List<Map<String, Integer>> selectableCells = game.getSelectableMoveCells(workerIndex);
+        Map<String, Object> response = new HashMap<>();
+        response.put("selectableCells", selectableCells);
+        return createJsonResponse(Response.Status.OK, response);
     }
-    
-    private Response handleGetGameState() {
+
+    private Response handleGetGameState() throws Exception {
         return createGameStateResponse(null);
     }
 
-    private Response handleAction(IHTTPSession session) {
+    private Response handleAction(IHTTPSession session) throws Exception {
         Map<String, String> postData = new HashMap<>();
         try {
             session.parseBody(postData);
         } catch (ResponseException | IOException e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Error parsing request body: " + e.getMessage()));
+            throw new Exception("Error parsing request body: " + e.getMessage());
         }
 
         String jsonBody = postData.get("postData");
         if (jsonBody == null || jsonBody.isEmpty()) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Empty request body."));
+            throw new Exception("Empty request body.");
         }
 
         JSONObject json;
         try {
             json = new JSONObject(jsonBody);
         } catch (Exception e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", "Invalid JSON format."));
+            throw new Exception("Invalid JSON format.");
         }
 
         String actionType = json.optString("actionType", "");
         int workerIndex = json.optInt("workerIndex", -1);
         int x = json.optInt("x", -1);
         int y = json.optInt("y", -1);
+        boolean buildDome = json.optBoolean("buildDome", false); // For Atlas
 
-        try {
-            switch (actionType) {
-                case "placeWorker":
-                    if (x == -1 || y == -1) throw new IllegalArgumentException("Invalid coordinates for placement.");
-                    game.placeWorker(x, y);
-                    break;
+        switch (actionType) {
+            case "placeWorker":
+                if (x == -1 || y == -1) throw new Exception("Invalid coordinates for placement.");
+                game.placeWorker(x, y);
+                break;
 
-                case "move":
-                    if (workerIndex == -1 || x == -1 || y == -1) throw new IllegalArgumentException("Invalid move parameters.");
-                    game.moveWorker(workerIndex, x, y);
-                    break;
+            case "move":
+                if (workerIndex == -1 || x == -1 || y == -1) throw new Exception("Invalid move parameters.");
+                game.moveWorker(workerIndex, x, y);
+                break;
 
-                case "build":
-                    if (x == -1 || y == -1) throw new IllegalArgumentException("Invalid coordinates for building.");
-                    game.build(x, y);
-                    break;
+            case "build":
+                if (workerIndex == -1 || x == -1 || y == -1) throw new Exception("Invalid build parameters.");
+                // Strategies handle build actions internally
+                game.build(x, y);
+                break;
 
-                default:
-                    throw new IllegalArgumentException("Unknown action type.");
-            }
+            case "endTurn":
+                game.getCurrentPlayer().getGodStrategy().playerEndsTurn(game);
+                break;
 
-            return createGameStateResponse("Action processed.");
-
-        } catch (Exception e) {
-            return createJsonResponse(Response.Status.BAD_REQUEST, Map.of("error", e.getMessage()));
+            default:
+                throw new Exception("Unknown action type.");
         }
+
+        return createGameStateResponse("Action " + actionType + " processed successfully.");
     }
-    private Response createGameStateResponse(String message) {
+
+    private Response createGameStateResponse(String message) throws Exception {
         Map<String, Object> state = new HashMap<>();
         if (message != null) state.put("message", message);
         state.put("grid", serializeGrid());
@@ -223,15 +244,19 @@ public Response serve(IHTTPSession session) {
         state.put("winner", game.getWinner()); // Add this line
         state.put("playerAGod", game.getPlayerA().getGodStrategy().getName());
         state.put("playerBGod", game.getPlayerB().getGodStrategy().getName());
-        state.put("strategyState", game.getCurrentPlayer().getGodStrategy().getStrategyState());
+
+        // Ensure strategyState is never null
+        Map<String, Object> strategyState = game.getCurrentPlayer().getGodStrategy().getStrategyState();
+        if (strategyState == null) {
+            strategyState = new HashMap<>();
+        }
+        state.put("strategyState", strategyState);
+
         state.put("currentPlayerGod", game.getCurrentPlayer().getGodStrategy().getName());
         return createJsonResponse(Response.Status.OK, state);
     }
-    
-    
-    
 
-    private List<List<Map<String, Object>>> serializeGrid() {
+    private List<List<Map<String, Object>>> serializeGrid() throws Exception {
         int boardSize = 5;
         List<List<Map<String, Object>>> serializedGrid = new ArrayList<>();
 
@@ -261,7 +286,7 @@ public Response serve(IHTTPSession session) {
         return serializedGrid;
     }
 
-    private List<Map<String, Object>> serializeWorkers() {
+    private List<Map<String, Object>> serializeWorkers() throws Exception {
         List<Map<String, Object>> workersList = new ArrayList<>();
         for (Worker worker : game.getAllWorkers()) {
             workersList.add(Map.of(

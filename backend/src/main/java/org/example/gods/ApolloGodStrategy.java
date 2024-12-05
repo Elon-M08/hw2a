@@ -1,11 +1,23 @@
+// src/main/java/org/example/gods/ApolloGodStrategy.java
 package org.example.gods;
 
+import org.example.Board;
 import org.example.Game;
 import org.example.Worker;
-import org.example.Board;
-import java.util.*;
 
-public class ApolloGodStrategy implements GodStrategy {
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
+
+/**
+ * Apollo's Strategy Implementation.
+ * Apollo allows a player to move their worker into an opponent's space by forcing their opponent's worker to the space Apollo's worker vacated.
+ */
+public class ApolloGodStrategy extends AbstractGodStrategy {
+    private static final Logger logger = Logger.getLogger(ApolloGodStrategy.class.getName());
+
+    private Map<String, Object> strategyState = new HashMap<>();
+    private boolean hasSwapped = false;
 
     @Override
     public String getName() {
@@ -13,123 +25,99 @@ public class ApolloGodStrategy implements GodStrategy {
     }
 
     @Override
-    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
-        Board board = game.getBoard();
-        int fromX = worker.getX();
-        int fromY = worker.getY();
-
-        if (!board.isWithinBounds(x, y)) {
-            throw new Exception("Move out of bounds.");
-        }
-
-        int heightDifference = board.getTowerHeight(x, y) - board.getTowerHeight(fromX, fromY);
-        if (heightDifference > 1) {
-            throw new Exception("Cannot move up more than one level.");
-        }
-
-        if (board.isOccupied(x, y)) {
-            Worker opponentWorker = board.getWorkerAt(x, y);
-            if (opponentWorker.getOwner() == worker.getOwner()) {
-                throw new Exception("Cannot move into your own worker's space.");
-            } else {
-                // Swap positions
-                board.moveWorker(fromX, fromY, x, y);
-                board.moveWorker(x, y, fromX, fromY);
-                opponentWorker.setPosition(fromX, fromY);
-                worker.setPosition(x, y);
-            }
-        } else {
-            // Normal move
-            boolean moveSuccess = game.defaultMoveWorker(worker, x, y);
-            if (!moveSuccess) {
-                throw new Exception("Invalid move. Try again.");
-            }
-        }
-
-        return true;
+    public Map<String, Object> getStrategyState() {
+        return strategyState;
     }
 
+    /**
+     * Overrides the move method to implement Apollo's special ability.
+     * Allows swapping with an opponent's worker.
+     */
     @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        // Use default build logic
-        return game.defaultBuild(worker, x, y);
+    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
+        logger.info(getName() + " Strategy: move called");
+
+        Board board = game.getBoard();
+        Worker targetWorker = board.getWorkerAt(x, y);
+
+        if (targetWorker == null) {
+            // Standard move
+            boolean moveSuccess = super.move(game, worker, x, y);
+            if (moveSuccess) {
+                logger.info(getName() + " Strategy: Standard move completed");
+            }
+            return moveSuccess;
+        } else {
+            // Attempt to swap with opponent's worker
+            if (!targetWorker.getOwner().equals(worker.getOwner())) {
+                int fromX = worker.getX();
+                int fromY = worker.getY();
+
+                // Perform the swap
+                boolean swapSuccess = board.swapWorkers(worker, targetWorker);
+                if (swapSuccess) {
+                    hasSwapped = true;
+                    strategyState.put("hasSwapped", true);
+                    logger.info(getName() + " Strategy: Swapped with opponent's worker at (" + x + ", " + y + ")");
+                    return true;
+                } else {
+                    logger.warning(getName() + " Strategy: Failed to swap with opponent's worker.");
+                    throw new Exception("Failed to swap with opponent's worker.");
+                }
+            } else {
+                // Target worker belongs to the same player; invalid move
+                logger.warning(getName() + " Strategy: Target cell occupied by own worker. Invalid move.");
+                throw new Exception("Cannot move into a cell occupied by your own worker.");
+            }
+        }
     }
 
+    /**
+     * Overrides the nextPhase method to handle phase transitions after moving or building.
+     */
     @Override
     public void nextPhase(Game game) throws Exception {
-        if (game.isGameEnded()) {
-            return;
-        }
+        logger.info(getName() + " Strategy: nextPhase called");
+        Game.GamePhase currentPhase = game.getCurrentPhase();
 
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
+        if (currentPhase == Game.GamePhase.MOVE) {
+            // After MOVE phase, transition to BUILD phase
             game.setCurrentPhase(Game.GamePhase.BUILD);
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
+            logger.info(getName() + " Strategy: Transitioned to BUILD phase.");
+        } else if (currentPhase == Game.GamePhase.BUILD) {
+            // After BUILD phase, end turn and switch to the next player
             game.switchPlayer();
+            game.setCurrentPhase(Game.GamePhase.MOVE);
+            logger.info(getName() + " Strategy: Transitioned to MOVE phase for " + game.getCurrentPlayer().getName());
+        } else {
+            // Handle unexpected phases gracefully
+            logger.severe(getName() + " Strategy: nextPhase called in unexpected phase: " + currentPhase);
+            throw new Exception("Apollo's nextPhase called in unexpected phase: " + currentPhase);
         }
     }
 
+    /**
+     * Overrides the playerEndsTurn method to reset Apollo's state.
+     */
     @Override
-    public boolean checkVictory(Game game, Worker worker) throws Exception {
-        return game.defaultCheckVictory(worker);
+    public void playerEndsTurn(Game game) throws Exception {
+        logger.info(getName() + " Strategy: playerEndsTurn called");
+
+        // Reset Apollo's state
+        hasSwapped = false;
+        strategyState.clear();
+
+        // Delegate to superclass to handle any additional reset logic
+        super.playerEndsTurn(game);
     }
 
+    /**
+     * Apollo's strategy does not utilize the setCannotMoveUp method.
+     * It can be left empty or used if Apollo gains additional abilities in the future.
+     */
     @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        List<Map<String, Integer>> selectableCells = new ArrayList<>();
-        Board board = game.getBoard();
-        int x = worker.getX();
-        int y = worker.getY();
-
-        int[][] directions = {
-            {-1, -1}, {-1, 0}, {-1, 1},
-            { 0, -1},         { 0, 1},
-            { 1, -1}, { 1, 0}, { 1, 1}
-        };
-
-        int currentHeight = board.getTowerHeight(x, y);
-
-        for (int[] dir : directions) {
-            int moveX = x + dir[0];
-            int moveY = y + dir[1];
-
-            if (!board.isWithinBounds(moveX, moveY)) {
-                continue;
-            }
-
-            int targetHeight = board.getTowerHeight(moveX, moveY);
-
-            if (targetHeight - currentHeight > 1 || targetHeight >= 4) {
-                continue;
-            }
-
-            if (board.isOccupied(moveX, moveY)) {
-                Worker otherWorker = board.getWorkerAt(moveX, moveY);
-                if (otherWorker.getOwner() == worker.getOwner()) {
-                    continue; // Cannot move into own worker's space
-                }
-                // Can move into opponent's space
-            }
-
-            Map<String, Integer> cell = new HashMap<>();
-            cell.put("x", moveX);
-            cell.put("y", moveY);
-            selectableCells.add(cell);
-        }
-
-        return selectableCells;
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
-        // Use default build logic
-        return new DefaultGodStrategy().getSelectableBuildCells(game, worker);
-    }
-
-    @Override
-    public Map<String, Object> getStrategyState() {
-        // Apollo does not have extra state to maintain
-        return null;
+    public void setCannotMoveUp(boolean cannotMoveUp) {
+        // Apollo's strategy does not utilize this method
+        // Do nothing
     }
 }

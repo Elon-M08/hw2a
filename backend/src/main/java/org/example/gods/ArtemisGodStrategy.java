@@ -1,10 +1,17 @@
+// src/main/java/org/example/gods/ArtemisGodStrategy.java
 package org.example.gods;
 
 import org.example.Game;
 import org.example.Worker;
+import org.example.Board;
 import java.util.*;
+import java.util.Map;
 
-public class ArtemisGodStrategy implements GodStrategy {
+/**
+ * Artemis's Strategy Implementation.
+ * Artemis allows an additional move, but not back to the initial space.
+ */
+public class ArtemisGodStrategy extends AbstractGodStrategy {
 
     private boolean extraMoveAvailable = false;
     private int initialX = -1;
@@ -17,13 +24,19 @@ public class ArtemisGodStrategy implements GodStrategy {
 
     @Override
     public boolean move(Game game, Worker worker, int x, int y) throws Exception {
+        logger.info(getName() + " Strategy: move called");
+
         if (!extraMoveAvailable) {
             // First move
-            boolean moveSuccess = game.defaultMoveWorker(worker, x, y);
+            boolean moveSuccess = super.move(game, worker, x, y);
             if (moveSuccess) {
                 extraMoveAvailable = true;
                 initialX = worker.getX();
                 initialY = worker.getY();
+                strategyState.put("extraMoveAvailable", true);
+                strategyState.put("initialX", initialX);
+                strategyState.put("initialY", initialY);
+                logger.info(getName() + " Strategy: First move completed, extra move available");
             }
             return moveSuccess;
         } else {
@@ -31,95 +44,42 @@ public class ArtemisGodStrategy implements GodStrategy {
             if (x == initialX && y == initialY) {
                 throw new Exception("Cannot move back to the initial space.");
             }
-            boolean moveSuccess = game.defaultMoveWorker(worker, x, y);
+            boolean moveSuccess = super.move(game, worker, x, y);
             if (moveSuccess) {
                 extraMoveAvailable = false;
-                return true;
-            } else {
-                throw new Exception("Invalid move. Try again.");
+                strategyState.put("extraMoveAvailable", false);
+                logger.info(getName() + " Strategy: Second move completed");
             }
+            return moveSuccess;
         }
-    }
-
-    @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        if (extraMoveAvailable) {
-            throw new Exception("You must finish your moves before building.");
-        }
-        // Use default build logic
-        return game.defaultBuild(worker, x, y);
     }
 
     @Override
     public void nextPhase(Game game) throws Exception {
-        if (game.isGameEnded()) {
-            return;
-        }
-
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            if (extraMoveAvailable) {
-                // Wait for player to decide to move again or skip
-            } else {
-                game.setCurrentPhase(Game.GamePhase.BUILD);
-            }
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            // End turn
-            extraMoveAvailable = false;
-            initialX = -1;
-            initialY = -1;
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
-            game.switchPlayer();
-        }
-    }
-
-    @Override
-    public boolean checkVictory(Game game, Worker worker) throws Exception {
-        return game.defaultCheckVictory(worker);
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        if (!extraMoveAvailable) {
-            // First move
-            return new DefaultGodStrategy().getSelectableMoveCells(game, worker);
-        } else {
-            // Second move
-            List<Map<String, Integer>> selectableCells = new DefaultGodStrategy().getSelectableMoveCells(game, worker);
-            // Remove the initial space
-            selectableCells.removeIf(cell -> cell.get("x") == initialX && cell.get("y") == initialY);
-            return selectableCells;
-        }
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
+        logger.info(getName() + " Strategy: nextPhase called");
         if (extraMoveAvailable) {
-            // Cannot build until moves are finished
-            return Collections.emptyList();
+            // Awaiting second move
+            // The frontend should handle prompting the player for the extra move
+        } else {
+            // Proceed to build phase
+            super.nextPhase(game);
         }
-        return new DefaultGodStrategy().getSelectableBuildCells(game, worker);
-    }
-
-    @Override
-    public Map<String, Object> getStrategyState() {
-        Map<String, Object> state = new HashMap<>();
-        state.put("extraMoveAvailable", extraMoveAvailable);
-        return state;
     }
 
     @Override
     public void playerEndsTurn(Game game) throws Exception {
-        if (extraMoveAvailable) {
-            // Player chooses to skip the second move
-            extraMoveAvailable = false;
-            game.setCurrentPhase(Game.GamePhase.BUILD);
-        } else {
-            // End turn normally
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
-            game.switchPlayer();
-        }
+        logger.info(getName() + " Strategy: playerEndsTurn called");
+        // Reset Artemis's state
+        extraMoveAvailable = false;
+        initialX = -1;
+        initialY = -1;
+        strategyState.clear();
+        super.playerEndsTurn(game);
+    }
+
+    @Override
+    public void setCannotMoveUp(boolean cannotMoveUp) {
+        // Artemis's strategy does not utilize this method
+        // Do nothing or implement if necessary
     }
 }
-

@@ -1,4 +1,7 @@
+// src/main/java/org/example/Cell.java
 package org.example;
+
+import java.util.Objects;
 
 /**
  * The Cell class represents a single cell on the Santorini game board.
@@ -126,5 +129,26 @@ public class Cell {
     public String toString() {
         String workerInfo = hasWorker() ? worker.getOwner().getName() : "None";
         return String.format("Cell[Height=%d, Worker=%s, Selectable=%b]", height, workerInfo, selectable);
+    }
+
+    /**
+     * Checks if two Cell objects are equal based on their height, worker, and selectability.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Cell)) return false;
+        Cell other = (Cell) obj;
+        return this.height == other.height &&
+               Objects.equals(this.worker, other.worker) &&
+               this.selectable == other.selectable;
+    }
+
+    /**
+     * Generates a hash code for the cell.
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(height, worker, selectable);
     }
 }

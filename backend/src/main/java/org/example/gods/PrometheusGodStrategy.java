@@ -1,168 +1,147 @@
-package org.example.gods;
+// // src/main/java/org/example/gods/PrometheusGodStrategy.java
+// package org.example.gods;
 
-import org.example.Game;
-import org.example.Worker;
-import org.example.Board;
-import java.util.*;
+// import org.example.Board;
+// import org.example.Game;
+// import org.example.Worker;
+// import java.util.HashMap;
+// import java.util.Map;
+// import java.util.logging.Logger;
 
-public class PrometheusGodStrategy implements GodStrategy {
+// /**
+//  * Prometheus's Strategy Implementation.
+//  * Prometheus allows a player to build before moving.
+//  * If a player builds before moving, they cannot move up during their movement phase.
+//  */
+// public class PrometheusGodStrategy extends DefaultGodStrategy {
+//     private static final Logger logger = Logger.getLogger(PrometheusGodStrategy.class.getName());
 
-    private boolean builtBeforeMove = false;
-    private boolean canMoveUp = true;
+//     // Tracks if the player has built before moving
+//     private boolean hasBuiltBeforeMove = false;
 
-    @Override
-    public String getName() {
-        return "Prometheus";
-    }
+//     @Override
+//     public String getName() {
+//         return "Prometheus";
+//     }
 
-    @Override
-    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
-        Board board = game.getBoard();
-        int fromX = worker.getX();
-        int fromY = worker.getY();
-        int fromHeight = board.getTowerHeight(fromX, fromY);
-        int toHeight = board.getTowerHeight(x, y);
+//     @Override
+//     public Map<String, Object> getStrategyState() {
+//         Map<String, Object> state = super.getStrategyState();
+//         state.put("hasBuiltBeforeMove", hasBuiltBeforeMove);
+//         return state;
+//     }
 
-        if (toHeight - fromHeight > 1) {
-            throw new Exception("Cannot move up more than one level.");
-        }
+//     /**
+//      * Overrides the build method to allow building before moving.
+//      */
+//     @Override
+//     public boolean build(Game game, Worker worker, int x, int y) throws Exception {
+//         Board board = game.getBoard();
 
-        if (builtBeforeMove && toHeight > fromHeight) {
-            throw new Exception("Cannot move up after building before moving.");
-        }
+//         if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
+//             // Build before moving
+//             if (hasBuiltBeforeMove) {
+//                 logger.warning(getName() + " Strategy: Already built before moving.");
+//                 throw new Exception("You have already built before moving.");
+//             }
 
-        boolean moveSuccess = game.defaultMoveWorker(worker, x, y);
-        if (!moveSuccess) {
-            throw new Exception("Invalid move. Try again.");
-        }
+//             boolean buildSuccess = super.build(game, worker, x, y);
+//             if (buildSuccess) {
+//                 hasBuiltBeforeMove = true;
+//                 strategyState.put("hasBuiltBeforeMove", hasBuiltBeforeMove);
+//                 logger.info(getName() + " Strategy: Built before moving. Movement restrictions applied.");
+//             }
+//             return buildSuccess;
+//         } else if (game.getCurrentPhase() == Game.GamePhase.BUILD_AFTER_MOVE) {
+//             // Build after moving
+//             return super.build(game, worker, x, y);
+//         } else {
+//             logger.warning(getName() + " Strategy: Cannot build at this phase.");
+//             throw new Exception("Cannot build at this phase.");
+//         }
+//     }
 
-        return true;
-    }
+//     /**
+//      * Overrides the move method to enforce movement restrictions if built before moving.
+//      */
+//     @Override
+//     public boolean move(Game game, Worker worker, int x, int y) throws Exception {
+//         Board board = game.getBoard();
+//         int fromX = worker.getX();
+//         int fromY = worker.getY();
+//         int fromHeight = board.getTowerHeight(fromX, fromY);
+//         int toHeight = board.getTowerHeight(x, y);
 
-    @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            // Building before moving
-            if (builtBeforeMove) {
-                throw new Exception("You have already built before moving.");
-            }
-            boolean buildSuccess = game.defaultBuild(worker, x, y);
-            if (buildSuccess) {
-                builtBeforeMove = true;
-                canMoveUp = false;
-            }
-            return buildSuccess;
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            // Building after moving
-            if (!builtBeforeMove) {
-                throw new Exception("You must build before moving to build after moving.");
-            }
-            boolean buildSuccess = game.defaultBuild(worker, x, y);
-            if (buildSuccess) {
-                // Reset state after completing both builds
-                builtBeforeMove = false;
-                canMoveUp = true;
-            }
-            return buildSuccess;
-        } else {
-            throw new Exception("Invalid game phase for building.");
-        }
-    }
+//         // If built before moving, cannot move up
+//         if (hasBuiltBeforeMove && (toHeight > fromHeight)) {
+//             logger.warning(getName() + " Strategy: Cannot move up after building before moving.");
+//             throw new Exception("Cannot move up after building before moving.");
+//         }
 
-    @Override
-    public void nextPhase(Game game) throws Exception {
-        if (game.isGameEnded()) {
-            return;
-        }
+//         // Perform the move using the superclass's move method
+//         boolean moveSuccess = super.move(game, worker, x, y);
+//         if (!moveSuccess) {
+//             logger.warning(getName() + " Strategy: Move failed.");
+//             throw new Exception("Invalid move. Try again.");
+//         }
 
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            if (builtBeforeMove) {
-                // Proceed to MOVE phase after building before moving
-                game.setCurrentPhase(Game.GamePhase.MOVE);
-            } else {
-                // Proceed to BUILD phase if no pre-move build
-                game.setCurrentPhase(Game.GamePhase.BUILD);
-            }
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            // End turn
-            builtBeforeMove = false;
-            canMoveUp = true;
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
-            game.switchPlayer();
-        }
-    }
+//         logger.info(getName() + " Strategy: Move completed to (" + x + ", " + y + ").");
+//         return true;
+//     }
 
-    @Override
-    public boolean checkVictory(Game game, Worker worker) throws Exception {
-        return game.defaultCheckVictory(worker);
-    }
+//     /**
+//      * Overrides the nextPhase method to handle phase transitions based on build state.
+//      */
+//     @Override
+//     public void nextPhase(Game game) throws Exception {
+//         logger.info(getName() + " Strategy: nextPhase called.");
 
-    @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        List<Map<String, Integer>> selectableCells = new ArrayList<>();
-        Board board = game.getBoard();
-        int x = worker.getX();
-        int y = worker.getY();
+//         if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
+//             if (hasBuiltBeforeMove) {
+//                 // Proceed to move phase with movement restrictions
+//                 game.setCurrentPhase(Game.GamePhase.BUILD_AFTER_MOVE);
+//                 logger.info(getName() + " Strategy: Proceeding to move phase with movement restrictions.");
+//             } else {
+//                 // Standard move phase
+//                 super.nextPhase(game);
+//                 logger.info(getName() + " Strategy: Proceeding to move phase without movement restrictions.");
+//             }
+//         } else if (game.getCurrentPhase() == Game.GamePhase.BUILD_AFTER_MOVE || game.getCurrentPhase() == Game.GamePhase.BUILD) {
+//             // Proceed to build phase or end turn
+//             super.nextPhase(game);
+//             logger.info(getName() + " Strategy: Proceeding to build phase or ending turn.");
+//         }
+//     }
 
-        int[][] directions = {
-            {-1, -1}, {-1, 0}, {-1, 1},
-            { 0, -1},         { 0, 1},
-            { 1, -1}, { 1, 0}, { 1, 1}
-        };
+//     /**
+//      * Overrides the checkVictory method to include Prometheus's special victory condition.
+//      * Prometheus's victory conditions are the same as the standard ones.
+//      */
+//     @Override
+//     public boolean checkVictory(Game game, Worker worker) throws Exception {
+//         // Standard victory conditions
+//         return super.checkVictory(game, worker);
+//     }
 
-        int currentHeight = board.getTowerHeight(x, y);
+//     /**
+//      * Overrides the playerEndsTurn method to reset Prometheus's state.
+//      */
+//     @Override
+//     public void playerEndsTurn(Game game) throws Exception {
+//         logger.info(getName() + " Strategy: playerEndsTurn called.");
+//         // Reset Prometheus's build state
+//         hasBuiltBeforeMove = false;
+//         strategyState.put("hasBuiltBeforeMove", hasBuiltBeforeMove);
+//         // Delegate to superclass to handle any additional reset logic
+//         super.playerEndsTurn(game);
+//     }
 
-        for (int[] dir : directions) {
-            int moveX = x + dir[0];
-            int moveY = y + dir[1];
-
-            if (!board.isWithinBounds(moveX, moveY)) {
-                continue;
-            }
-
-            if (board.isOccupied(moveX, moveY)) {
-                continue;
-            }
-
-            int targetHeight = board.getTowerHeight(moveX, moveY);
-
-            if (targetHeight - currentHeight > 1 || targetHeight >= 4) {
-                continue;
-            }
-
-            if (builtBeforeMove && targetHeight > currentHeight) {
-                continue; // Cannot move up after building before moving
-            }
-
-            Map<String, Integer> cell = new HashMap<>();
-            cell.put("x", moveX);
-            cell.put("y", moveY);
-            selectableCells.add(cell);
-        }
-
-        return selectableCells;
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
-        return new DefaultGodStrategy().getSelectableBuildCells(game, worker);
-    }
-
-    @Override
-    public Map<String, Object> getStrategyState() {
-        Map<String, Object> state = new HashMap<>();
-        state.put("canBuildBeforeMove", !builtBeforeMove && game.getCurrentPhase() == Game.GamePhase.MOVE);
-        state.put("builtBeforeMove", builtBeforeMove);
-        return state;
-    }
-
-    @Override
-    public void playerEndsTurn(Game game) throws Exception {
-        builtBeforeMove = false;
-        canMoveUp = true;
-        game.setSelectedWorker(null);
-        game.setCurrentPhase(Game.GamePhase.MOVE);
-        game.switchPlayer();
-    }
-}
+//     /**
+//      * Overrides setCannotMoveUp, but Prometheus's strategy does not utilize this method.
+//      */
+//     @Override
+//     public void setCannotMoveUp(boolean cannotMoveUp) {
+//         // Prometheus's strategy does not utilize this method
+//         // Do nothing
+//     }
+// }

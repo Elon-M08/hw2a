@@ -1,89 +1,112 @@
-package org.example.gods;
+// // src/main/java/org/example/gods/AtlasGodStrategy.java
+// package org.example.gods;
 
-import org.example.Game;
-import org.example.Worker;
-import org.example.Board;
-import java.util.*;
+// import org.example.Board;
+// import org.example.Game;
+// import org.example.Worker;
 
-public class AtlasGodStrategy implements GodStrategy {
+// import java.util.HashMap;
+// import java.util.Map;
+// import java.util.logging.Logger;
 
-    private boolean buildDome = false;
+// /**
+//  * Atlas's Strategy Implementation.
+//  * Atlas allows building a dome at any level, effectively preventing further building on that cell.
+//  */
+// public class AtlasGodStrategy extends DefaultGodStrategy {
+//     private static final Logger logger = Logger.getLogger(AtlasGodStrategy.class.getName());
 
-    @Override
-    public String getName() {
-        return "Atlas";
-    }
+//     // Flag to determine if a dome should be built
+//     private boolean buildDome = false;
 
-    @Override
-    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
-        // Use default move logic
-        return game.defaultMoveWorker(worker, x, y);
-    }
+//     @Override
+//     public String getName() {
+//         return "Atlas";
+//     }
 
-    @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        Board board = game.getBoard();
+//     @Override
+//     public Map<String, Object> getStrategyState() {
+//         Map<String, Object> state = super.getStrategyState();
+//         state.put("canBuildDome", buildDome);
+//         return state;
+//     }
 
-        if (!board.isAdjacent(worker.getX(), worker.getY(), x, y)) {
-            throw new Exception("Build position must be adjacent.");
-        }
+//     /**
+//      * Overrides the build method to implement Atlas's special ability.
+//      * Allows building a dome at any level.
+//      */
+//     @Override
+//     public boolean build(Game game, Worker worker, int x, int y) throws Exception {
+//         Board board = game.getBoard();
 
-        if (board.isOccupied(x, y)) {
-            throw new Exception("Cannot build on an occupied space.");
-        }
+//         if (!board.isAdjacent(worker.getX(), worker.getY(), x, y)) {
+//             throw new Exception("Build position must be adjacent.");
+//         }
 
-        if (buildDome) {
-            // Build a dome regardless of current height
-            board.setTowerHeight(x, y, 4);
-            buildDome = false;
-        } else {
-            // Normal build
-            game.defaultBuild(worker, x, y);
-        }
+//         if (board.isOccupied(x, y)) {
+//             throw new Exception("Cannot build on an occupied space.");
+//         }
 
-        return true;
-    }
+//         if (buildDome) {
+//             // Build a dome regardless of current height
+//             int currentHeight = board.getTowerHeight(x, y);
+//             if (currentHeight >= 4) {
+//                 throw new Exception("Cannot build a dome on a cell that already has a dome.");
+//             }
+//             board.setTowerHeight(x, y, 4);
+//             logger.info(getName() + " Strategy: Built a dome at (" + x + ", " + y + ")");
+//             buildDome = false;
+//             getStrategyState().put("canBuildDome", false);
+//         } else {
+//             // Standard build
+//             boolean buildSuccess = super.build(game, worker, x, y);
+//             if (buildSuccess) {
+//                 logger.info(getName() + " Strategy: Standard build completed at (" + x + ", " + y + ")");
+//             }
+//             return buildSuccess;
+//         }
 
-    @Override
-    public void nextPhase(Game game) throws Exception {
-        if (game.isGameEnded()) {
-            return;
-        }
+//         return true;
+//     }
 
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            game.setCurrentPhase(Game.GamePhase.BUILD);
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            // End turn
-            buildDome = false;
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
-            game.switchPlayer();
-        }
-    }
+//     /**
+//      * Overrides the setBuildDome method to enable dome building.
+//      */
+//     @Override
+//     public void setBuildDome(boolean buildDome) {
+//         this.buildDome = buildDome;
+//         getStrategyState().put("canBuildDome", this.buildDome);
+//         logger.info(getName() + " Strategy: setBuildDome set to " + this.buildDome);
+//     }
 
-    @Override
-    public boolean checkVictory(Game game, Worker worker) throws Exception {
-        return game.defaultCheckVictory(worker);
-    }
+//     /**
+//      * Overrides the nextPhase method to transition to the build phase after building.
+//      */
+//     @Override
+//     public void nextPhase(Game game) throws Exception {
+//         logger.info(getName() + " Strategy: nextPhase called");
+//         // Proceed to build phase
+//         game.setCurrentPhase(Game.GamePhase.BUILD);
+//     }
 
-    @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        return new DefaultGodStrategy().getSelectableMoveCells(game, worker);
-    }
+//     /**
+//      * Overrides the playerEndsTurn method to reset Atlas's state.
+//      */
+//     @Override
+//     public void playerEndsTurn(Game game) throws Exception {
+//         logger.info(getName() + " Strategy: playerEndsTurn called");
+//         // Reset Atlas's state
+//         buildDome = false;
+//         getStrategyState().put("canBuildDome", false);
+//         super.playerEndsTurn(game);
+//     }
 
-    @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
-        return new DefaultGodStrategy().getSelectableBuildCells(game, worker);
-    }
-
-    @Override
-    public Map<String, Object> getStrategyState() {
-        Map<String, Object> state = new HashMap<>();
-        state.put("canBuildDome", true);
-        return state;
-    }
-
-    public void setBuildDome(boolean buildDome) {
-        this.buildDome = buildDome;
-    }
-}
+//     /**
+//      * Overrides setCannotMoveUp, but Atlas's strategy does not utilize this method.
+//      */
+//     @Override
+//     public void setCannotMoveUp(boolean cannotMoveUp) {
+//         // Atlas's strategy does not utilize this method
+//         // Do nothing
+//     }
+// }

@@ -1,3 +1,4 @@
+// src/main/java/org/example/Game.java
 package org.example;
 
 import java.util.ArrayList;
@@ -6,6 +7,10 @@ import java.util.List;
 import java.util.Map;
 import org.example.gods.*;
 
+/**
+ * The Game class encapsulates the entire state and logic of the Santorini game.
+ * It manages players, workers, the board, game phases, and interactions with God strategies.
+ */
 public class Game {
     private Player playerA;
     private Player playerB;
@@ -18,7 +23,9 @@ public class Game {
     public enum GamePhase {
         PLACEMENT,
         MOVE,
-        BUILD
+        BUILD,
+        BUILD_AFTER_MOVE,
+        END_TURN // Added END_TURN phase
     }
 
     protected GamePhase currentPhase = GamePhase.PLACEMENT;
@@ -28,6 +35,7 @@ public class Game {
     public Game() {
         initializeGame(new DefaultGodStrategy(), new DefaultGodStrategy());
     }
+
     public Game(GodStrategy playerAStrategy, GodStrategy playerBStrategy) {
         initializeGame(playerAStrategy, playerBStrategy);
     }
@@ -35,7 +43,6 @@ public class Game {
     private void initializeGame(GodStrategy playerAStrategy, GodStrategy playerBStrategy) {
         board = new Board();
         previousHeights = new HashMap<>();
-
 
         playerA = new Player("Player A", playerAStrategy);
         playerB = new Player("Player B", playerBStrategy);
@@ -47,27 +54,49 @@ public class Game {
         gameEnded = false;
     }
 
+    // Method to create GodStrategy based on god name
+    public static GodStrategy createGodStrategy(String godName) {
+        switch (godName) {
+            case "Apollo":
+                return new ApolloGodStrategy();
+            case "Artemis":
+                return new ArtemisGodStrategy();
+            case "Athena":
+                return new AthenaGodStrategy();
+            // Add other God strategies as needed
+            default:
+                return new DefaultGodStrategy();
+        }
+    }
+
     public Player getCurrentPlayer() {
         return currentPlayer;
+    }
+
+    public Player getOpponentPlayer() {
+        return (currentPlayer == playerA) ? playerB : playerA;
     }
 
     public void switchPlayer() {
         currentPlayer = (currentPlayer == playerA) ? playerB : playerA;
     }
+
     public boolean checkVictory() throws Exception {
         for (Worker worker : currentPlayer.getWorkers()) {
             if (currentPlayer.getGodStrategy().checkVictory(this, worker)) {
                 System.out.println(currentPlayer.getName() + " wins!");
                 gameEnded = true;
+                winner = currentPlayer.getName();
                 return true;
             }
         }
         return false;
     }
+
     public void setPreviousHeight(Worker worker, int height) {
         previousHeights.put(worker, height);
     }
-    
+
     public int getPreviousHeight(Worker worker) {
         return previousHeights.getOrDefault(worker, 0);
     }
@@ -76,43 +105,68 @@ public class Game {
         this.winner = winner;
     }
 
-    public String getWinner() {
-        return winner;
-    }
+    /**
+     * Safely retrieves selectable move cells by delegating to the current player's strategy.
+     * Prevents recursion by ensuring strategies do not call back into these methods.
+     */
     public List<Map<String, Integer>> getSelectableMoveCells(int workerIndex) throws Exception {
         if (gameEnded) {
             throw new Exception("Game has ended.");
         }
-    
+
         if (currentPhase != GamePhase.MOVE) {
             throw new Exception("Not in the move phase.");
         }
-    
-        Worker worker = currentPlayer.getWorker(workerIndex);
+
+        Worker worker = currentPlayer.getWorkers().get(workerIndex);
         if (worker == null) {
             throw new Exception("Invalid worker selection.");
         }
-    
-        return currentPlayer.getGodStrategy().getSelectableMoveCells(this, worker);
+
+        GodStrategy strategy = currentPlayer.getGodStrategy();
+        if (strategy == null) {
+            throw new Exception("GodStrategy is not set for the current player.");
+        }
+
+        List<Map<String, Integer>> selectableCells = strategy.getSelectableMoveCells(this, worker);
+        if (selectableCells == null) {
+            throw new Exception("Selectable move cells returned null.");
+        }
+
+        return selectableCells;
     }
-    
+
+    /**
+     * Safely retrieves selectable build cells by delegating to the current player's strategy.
+     * Prevents recursion by ensuring strategies do not call back into these methods.
+     */
     public List<Map<String, Integer>> getSelectableBuildCells(int workerIndex) throws Exception {
         if (gameEnded) {
             throw new Exception("Game has ended.");
         }
-    
-        if (currentPhase != GamePhase.BUILD) {
+
+        if (currentPhase != GamePhase.BUILD && currentPhase != GamePhase.BUILD_AFTER_MOVE) {
             throw new Exception("Not in the build phase.");
         }
-    
-        Worker worker = currentPlayer.getWorker(workerIndex);
+
+        Worker worker = currentPlayer.getWorkers().get(workerIndex);
         if (worker == null) {
             throw new Exception("Invalid worker selection.");
         }
-    
-        return currentPlayer.getGodStrategy().getSelectableBuildCells(this, worker);
+
+        GodStrategy strategy = currentPlayer.getGodStrategy();
+        if (strategy == null) {
+            throw new Exception("GodStrategy is not set for the current player.");
+        }
+
+        List<Map<String, Integer>> selectableBuildCells = strategy.getSelectableBuildCells(this, worker);
+        if (selectableBuildCells == null) {
+            throw new Exception("Selectable build cells returned null.");
+        }
+
+        return selectableBuildCells;
     }
-    
+
     public boolean placeWorker(int x, int y) throws Exception {
         if (gameEnded) {
             throw new Exception("Game has ended.");
@@ -155,7 +209,7 @@ public class Game {
             throw new Exception("Not in the move phase.");
         }
 
-        selectedWorker = currentPlayer.getWorker(workerIndex);
+        selectedWorker = currentPlayer.getWorkers().get(workerIndex);
         if (selectedWorker == null) {
             throw new Exception("Invalid worker selection.");
         }
@@ -182,7 +236,7 @@ public class Game {
             throw new Exception("Game has ended.");
         }
 
-        if (currentPhase != GamePhase.BUILD) {
+        if (currentPhase != GamePhase.BUILD && currentPhase != GamePhase.BUILD_AFTER_MOVE) {
             throw new Exception("Not in the build phase.");
         }
 
@@ -199,7 +253,6 @@ public class Game {
         currentPlayer.getGodStrategy().nextPhase(this);
 
         return true;
-    
     }
 
     public Board getBoard() {
@@ -216,14 +269,19 @@ public class Game {
     public boolean isGameEnded() {
         return gameEnded;
     }
-    public void setGameEnded(boolean gameEnded) {
-        this.gameEnded = gameEnded;
-    }
+
     public GamePhase getCurrentPhase() {
         return currentPhase;
     }
-    
-    
+
+    public void setCurrentPhase(GamePhase phase) {
+        this.currentPhase = phase;
+    }
+
+    public void setSelectedWorker(Worker worker) {
+        this.selectedWorker = worker;
+    }
+
     public boolean defaultMoveWorker(Worker worker, int x, int y) throws Exception {
         int fromX = worker.getX();
         int fromY = worker.getY();
@@ -237,14 +295,6 @@ public class Game {
         }
         return true;
     }
-     // Add setters for currentPhase and selectedWorker
-     public void setCurrentPhase(GamePhase phase) {
-        this.currentPhase = phase;
-    }
-
-    public void setSelectedWorker(Worker worker) {
-        this.selectedWorker = worker;
-    }
 
     public boolean defaultBuild(Worker worker, int x, int y) throws Exception {
         boolean buildSuccess = board.build(x, y);
@@ -253,7 +303,6 @@ public class Game {
         }
         return true;
     }
-    
 
     public boolean defaultCheckVictory(Worker worker) {
         int x = worker.getX();
@@ -266,12 +315,15 @@ public class Game {
         return false;
     }
 
-
     public Player getPlayerA() {
         return playerA;
     }
-    
+
     public Player getPlayerB() {
         return playerB;
+    }
+
+    public String getWinner() {
+        return winner;
     }
 }

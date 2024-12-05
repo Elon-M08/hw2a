@@ -1,13 +1,22 @@
+// src/main/java/org/example/gods/AthenaGodStrategy.java
 package org.example.gods;
 
+import org.example.Board;
 import org.example.Game;
 import org.example.Worker;
-import org.example.Board;
-import java.util.*;
 
-public class AthenaGodStrategy implements GodStrategy {
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Logger;
 
-    private boolean opponentCannotMoveUp = false;
+/**
+ * Athena's Strategy Implementation.
+ * Athena's presence on the board forbids opponents from moving up during their subsequent moves.
+ */
+public class AthenaGodStrategy extends AbstractGodStrategy {
+    private static final Logger logger = Logger.getLogger(AthenaGodStrategy.class.getName());
+
+    private boolean hasMovedUp = false;
 
     @Override
     public String getName() {
@@ -15,112 +24,97 @@ public class AthenaGodStrategy implements GodStrategy {
     }
 
     @Override
-    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
-        Board board = game.getBoard();
-        int fromX = worker.getX();
-        int fromY = worker.getY();
-        int fromHeight = board.getTowerHeight(fromX, fromY);
-        int toHeight = board.getTowerHeight(x, y);
-
-        if (toHeight - fromHeight > 1) {
-            throw new Exception("Cannot move up more than one level.");
-        }
-
-        if (toHeight - fromHeight == 1) {
-            // Moved up
-            opponentCannotMoveUp = true;
-        } else {
-            opponentCannotMoveUp = false;
-        }
-
-        return game.defaultMoveWorker(worker, x, y);
-    }
-
-    @Override
-    public boolean build(Game game, Worker worker, int x, int y) throws Exception {
-        // Use default build logic
-        return game.defaultBuild(worker, x, y);
-    }
-
-    @Override
-    public void nextPhase(Game game) throws Exception {
-        if (game.isGameEnded()) {
-            return;
-        }
-
-        if (game.getCurrentPhase() == Game.GamePhase.MOVE) {
-            game.setCurrentPhase(Game.GamePhase.BUILD);
-        } else if (game.getCurrentPhase() == Game.GamePhase.BUILD) {
-            // End turn
-            game.setSelectedWorker(null);
-            game.setCurrentPhase(Game.GamePhase.MOVE);
-            game.switchPlayer();
-            // Apply effect to opponent
-            game.getCurrentPlayer().getGodStrategy().setOpponentMovedUp(opponentCannotMoveUp);
-        }
-    }
-
-    @Override
-    public boolean checkVictory(Game game, Worker worker) throws Exception {
-        return game.defaultCheckVictory(worker);
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
-        List<Map<String, Integer>> selectableCells = new ArrayList<>();
-        Board board = game.getBoard();
-        int x = worker.getX();
-        int y = worker.getY();
-
-        int[][] directions = {
-            {-1, -1}, {-1, 0}, {-1, 1},
-            { 0, -1},         { 0, 1},
-            { 1, -1}, { 1, 0}, { 1, 1}
-        };
-
-        int currentHeight = board.getTowerHeight(x, y);
-
-        for (int[] dir : directions) {
-            int moveX = x + dir[0];
-            int moveY = y + dir[1];
-
-            if (!board.isWithinBounds(moveX, moveY)) {
-                continue;
-            }
-
-            if (board.isOccupied(moveX, moveY)) {
-                continue;
-            }
-
-            int targetHeight = board.getTowerHeight(moveX, moveY);
-
-            if (targetHeight - currentHeight > 1 || targetHeight >= 4) {
-                continue;
-            }
-
-            Map<String, Integer> cell = new HashMap<>();
-            cell.put("x", moveX);
-            cell.put("y", moveY);
-            selectableCells.add(cell);
-        }
-
-        return selectableCells;
-    }
-
-    @Override
-    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
-        return new DefaultGodStrategy().getSelectableBuildCells(game, worker);
-    }
-
-    @Override
     public Map<String, Object> getStrategyState() {
         Map<String, Object> state = new HashMap<>();
-        state.put("opponentCannotMoveUp", opponentCannotMoveUp);
+        state.put("hasMovedUp", hasMovedUp);
         return state;
     }
 
-    // Method to be called by opponent's strategy
-    public void setOpponentMovedUp(boolean value) {
-        opponentCannotMoveUp = value;
+    /**
+     * Overrides the move method to implement Athena's special ability.
+     * If Athena moves up, opponents cannot move up in their next turn.
+     */
+    @Override
+    public boolean move(Game game, Worker worker, int x, int y) throws Exception {
+        logger.info(getName() + " Strategy: move called");
+
+        Board board = game.getBoard();
+        int fromHeight = board.getTowerHeight(worker.getX(), worker.getY());
+        boolean moveSuccess = super.move(game, worker, x, y);
+
+        if (moveSuccess) {
+            int toHeight = board.getTowerHeight(x, y);
+            if (toHeight > fromHeight) {
+                hasMovedUp = true;
+                strategyState.put("hasMovedUp", true);
+                logger.info(getName() + " Strategy: Worker moved up");
+            } else {
+                hasMovedUp = false;
+                strategyState.put("hasMovedUp", false);
+                logger.info(getName() + " Strategy: Worker did not move up");
+            }
+        }
+
+        return moveSuccess;
+    }
+
+    /**
+     * Overrides the nextPhase method to handle phase transitions after moving or building.
+     */
+    @Override
+    public void nextPhase(Game game) throws Exception {
+        logger.info(getName() + " Strategy: nextPhase called");
+        Game.GamePhase currentPhase = game.getCurrentPhase();
+
+        if (currentPhase == Game.GamePhase.MOVE) {
+            // After MOVE phase, transition to BUILD phase
+            game.setCurrentPhase(Game.GamePhase.BUILD);
+            logger.info(getName() + " Strategy: Transitioned to BUILD phase.");
+        } else if (currentPhase == Game.GamePhase.BUILD) {
+            // After BUILD phase, switch player and transition to MOVE phase
+            game.switchPlayer();
+            game.setCurrentPhase(Game.GamePhase.MOVE);
+
+            // If Athena has moved up in the previous turn, restrict opponent's movement
+            if (hasMovedUp) {
+                GodStrategy opponentStrategy = game.getOpponentPlayer().getGodStrategy();
+                opponentStrategy.setCannotMoveUp(true);
+                logger.info(getName() + " Strategy: Opponent's movement up is now restricted");
+            } else {
+                // If Athena did not move up, ensure opponent can move up
+                GodStrategy opponentStrategy = game.getOpponentPlayer().getGodStrategy();
+                opponentStrategy.setCannotMoveUp(false);
+                logger.info(getName() + " Strategy: Opponent's movement up is not restricted");
+            }
+
+            logger.info(getName() + " Strategy: Transitioned to MOVE phase for " + game.getCurrentPlayer().getName());
+        } else {
+            // Handle unexpected phases gracefully
+            logger.severe(getName() + " Strategy: nextPhase called in unexpected phase: " + currentPhase);
+            throw new Exception("Athena's nextPhase called in unexpected phase: " + currentPhase);
+        }
+    }
+
+    /**
+     * Overrides the playerEndsTurn method to reset Athena's state.
+     */
+    @Override
+    public void playerEndsTurn(Game game) throws Exception {
+        logger.info(getName() + " Strategy: playerEndsTurn called");
+        // Reset Athena's state
+        hasMovedUp = false;
+        strategyState.clear();
+        super.playerEndsTurn(game);
+    }
+
+    /**
+     * Athena's strategy manages restrictions on opponent's movement.
+     * This method is used by Athena to enforce or lift movement restrictions.
+     */
+    @Override
+    public void setCannotMoveUp(boolean cannotMoveUp) {
+        // Athena's strategy does not utilize this method for itself
+        // It enforces restrictions on the opponent
+        // Hence, no action is needed here
     }
 }

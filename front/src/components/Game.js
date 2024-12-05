@@ -8,8 +8,11 @@ import '../assets/styles/Game.css';
 axios.defaults.baseURL = 'http://localhost:8080';
 
 function Game() {
+    // State variables
     const [gameState, setGameState] = useState(null);
-    const [awaitingPreMoveBuildDecision, setAwaitingPreMoveBuildDecision] = useState(false);
+    const [buildDomeOption, setBuildDomeOption] = useState(false);
+    const [awaitingBuildDomeDecision, setAwaitingBuildDomeDecision] = useState(false);
+
     const [selectableCells, setSelectableCells] = useState([]);
     const [selectedWorker, setSelectedWorker] = useState(null);
     const [currentPlayerWorkers, setCurrentPlayerWorkers] = useState([]);
@@ -24,11 +27,26 @@ function Game() {
 
     const [strategyState, setStrategyState] = useState({});
     const [awaitingSecondBuildDecision, setAwaitingSecondBuildDecision] = useState(false);
+    const [awaitingSecondMoveDecision, setAwaitingSecondMoveDecision] = useState(false);
+    const [awaitingBuildBeforeMoveDecision, setAwaitingBuildBeforeMoveDecision] = useState(false);
     const [currentPlayerGod, setCurrentPlayerGod] = useState('');
+    const godOptions = [
+        'Apollo',
+        'Artemis',
+        'Athena',
+        'Atlas',
+        'Demeter',
+        'Hephaestus',
+        'Minotaur',
+        'Pan',
+        'Prometheus',
+        'Hermes',
+    ];
 
     useEffect(() => {
         if (gameState) {
-            const { currentPlayer, workers, gameEnded, winner: gameWinner, strategyState: gs, currentPlayerGod: god } = gameState;
+            // Destructure with default for strategyState
+            const { currentPlayer, workers, gameEnded, winner: gameWinner, strategyState: gs = {}, currentPlayerGod: god } = gameState;
             const playerWorkers = workers.filter((w) => w.player === currentPlayer);
             setCurrentPlayerWorkers(playerWorkers);
 
@@ -45,21 +63,42 @@ function Game() {
             setSelectedWorker(null);
 
             // Update strategyState
-            setStrategyState(gs || {});
+            setStrategyState(gs);
 
-            // Check if we need to prompt for extra build
-            if (gs && gs.extraBuildAvailable) {
+            // Check if we need to prompt for extra build (Demeter or Hephaestus)
+            if (gs.extraBuildAvailable) {
                 setAwaitingSecondBuildDecision(true);
             } else {
                 setAwaitingSecondBuildDecision(false);
+            }
+
+            // Check if Prometheus can build before move
+            if (gs.canBuildBeforeMove) {
+                setAwaitingBuildBeforeMoveDecision(true);
+            } else {
+                setAwaitingBuildBeforeMoveDecision(false);
+            }
+
+            // Check if Atlas can build a dome
+            if (gs.canBuildDome) {
+                setAwaitingBuildDomeDecision(true);
+            } else {
+                setAwaitingBuildDomeDecision(false);
+            }
+
+            // Check if Artemis has an extra move
+            if (gs.extraMoveAvailable && god === 'Artemis') {
+                setAwaitingSecondMoveDecision(true);
+            } else {
+                setAwaitingSecondMoveDecision(false);
             }
 
             // Store current player's God
             setCurrentPlayerGod(god);
         }
     }, [gameState]);
-    
 
+    // Start a new game
     const startNewGame = async () => {
         setLoading(true);
         try {
@@ -76,12 +115,13 @@ function Game() {
             setWinner(null);
             setIsGameStarted(true);
         } catch (error) {
-            setErrorMessage('Failed to start the game.');
+            setErrorMessage(error.response?.data?.error || 'Failed to start the game.');
         } finally {
             setLoading(false);
         }
     };
 
+    // Reset the game to initial state
     const resetGame = () => {
         setIsGameStarted(false);
         setPlayerAGod('');
@@ -94,6 +134,17 @@ function Game() {
         setWinner(null);
     };
 
+    // Fetch the latest game state from the backend
+    const fetchGameState = async () => {
+        try {
+            const response = await axios.get('/game-state');
+            setGameState(response.data);
+        } catch (error) {
+            setErrorMessage('Failed to fetch game state.');
+        }
+    };
+
+    // Handle cell clicks based on game phase
     const handleCellClick = async (x, y) => {
         console.log(`Cell clicked: x=${x}, y=${y}`);
         if (!gameState || gameEnded) return;
@@ -156,22 +207,43 @@ function Game() {
                         setErrorMessage('Please select one of your own workers.');
                     }
                 }
+            } else if (gamePhase === 'BUILD_BEFORE_MOVE') {
+                // Handle Prometheus's pre-move build
+                if (selectedWorker) {
+                    const response = await axios.post('/action', {
+                        actionType: 'build',
+                        workerIndex: selectedWorker.index,
+                        x,
+                        y,
+                    });
+                    setGameState(response.data);
+                    setSelectableCells([]);
+                    // After building before move, fetch the updated game state
+                    fetchGameState();
+                } else {
+                    setErrorMessage('No worker selected for building.');
+                }
             } else if (gamePhase === 'BUILD') {
                 if (selectedWorker) {
                     // Attempt to build at the selected cell
                     if (selectableCells.some((cell) => cell.x === x && cell.y === y)) {
-                        const response = await axios.post('/action', {
+                        const buildData = {
                             actionType: 'build',
                             workerIndex: selectedWorker.index,
                             x,
                             y,
-                        });
+                        };
+                        // Include buildDome option if Atlas is the current player's god
+                        if (currentPlayerGod === 'Atlas') {
+                            buildData.buildDome = buildDomeOption;
+                        }
+                        const response = await axios.post('/action', buildData);
                         setGameState(response.data);
-    
+
                         // Update strategyState
                         const gs = response.data.strategyState || {};
                         setStrategyState(gs);
-    
+
                         // Check if the strategy indicates extra builds are available
                         if (gs.extraBuildAvailable) {
                             // The strategy indicates that an extra build is available
@@ -219,6 +291,39 @@ function Game() {
             setErrorMessage(error.response?.data?.error || 'Action failed.');
         }
     };
+
+    // Handler for Artemis's extra move (Yes)
+    const handleSecondMoveYes = async () => {
+        try {
+            const response = await axios.get('/selectable-move-cells', {
+                params: { workerIndex: selectedWorker.index },
+            });
+            const cells = response.data.selectableCells;
+            if (cells.length === 0) {
+                setErrorMessage('No valid moves for this worker.');
+                setAwaitingSecondMoveDecision(false);
+            } else {
+                setSelectableCells(cells);
+                setAwaitingSecondMoveDecision(false);
+            }
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to get selectable move cells.');
+        }
+    };
+
+    // Handler for Artemis's extra move (No)
+    const handleSecondMoveNo = async () => {
+        try {
+            await axios.post('/action', { actionType: 'endTurn' });
+            const response = await axios.get('/game-state');
+            setGameState(response.data);
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to end turn.');
+        }
+        setAwaitingSecondMoveDecision(false);
+    };
+
+    // Handler for Demeter and Hephaestus's extra build (Yes)
     const handleSecondBuildYes = async () => {
         try {
             // Fetch selectable build cells for the second build
@@ -242,6 +347,7 @@ function Game() {
         }
     };
 
+    // Handler for Demeter and Hephaestus's extra build (No)
     const handleSecondBuildNo = async () => {
         try {
             // Inform the backend that the player ends their turn
@@ -252,7 +358,64 @@ function Game() {
         }
         setAwaitingSecondBuildDecision(false);
     };
-    
+
+    // Handler for Atlas's dome build option
+    const handleBuildDomeOption = async (buildDome) => {
+        setBuildDomeOption(buildDome);
+        setAwaitingBuildDomeDecision(false);
+        // Proceed to select build location
+        try {
+            const response = await axios.get('/selectable-build-cells', {
+                params: { workerIndex: selectedWorker.index },
+            });
+            const cells = response.data.selectableCells;
+            if (cells.length === 0) {
+                setErrorMessage('No valid build locations.');
+            } else {
+                setSelectableCells(cells);
+            }
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to get selectable build cells.');
+        }
+    };
+
+    // Handler for ending Hermes's move
+    const handleEndMove = async () => {
+        try {
+            await axios.post('/action', { actionType: 'endTurn' });
+            const response = await axios.get('/game-state');
+            setGameState(response.data);
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to end turn.');
+        }
+    };
+
+    // Handler functions for Prometheus's pre-move build
+    const handlePreMoveBuildYes = async () => {
+        try {
+            // Fetch selectable build cells
+            const response = await axios.get('/selectable-build-cells', {
+                params: { workerIndex: selectedWorker.index },
+            });
+            const cells = response.data.selectableCells;
+            if (cells.length === 0) {
+                setErrorMessage('No valid build locations.');
+            } else {
+                setSelectableCells(cells);
+                // You might need to send an action to indicate building before moving
+                // For simplicity, assuming the backend handles it after building
+            }
+            setAwaitingBuildBeforeMoveDecision(false);
+        } catch (error) {
+            setErrorMessage(error.response?.data?.error || 'Failed to get selectable build cells.');
+        }
+    };
+
+    const handlePreMoveBuildNo = () => {
+        setAwaitingBuildBeforeMoveDecision(false);
+        // Proceed to move phase by potentially sending an action to backend
+        // For simplicity, assuming the backend expects the player to move next
+    };
 
     return (
         <div className="game-container">
@@ -281,7 +444,41 @@ function Game() {
                                 selectableCells={selectableCells}
                                 selectedWorker={selectedWorker}
                             />
-                            {awaitingSecondBuildDecision && (
+                            {/* Artemis's Extra Move Decision */}
+                            {awaitingSecondMoveDecision && currentPlayerGod === 'Artemis' && (
+                                <div className="decision-modal">
+                                    <div className="modal-content">
+                                        <h2>Artemis's Power</h2>
+                                        <p>You may move one additional time, but not back to your initial space. Do you want to move again?</p>
+                                        <button onClick={handleSecondMoveYes}>Yes</button>
+                                        <button onClick={handleSecondMoveNo}>No</button>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Prometheus's Pre-Move Build Decision */}
+                            {awaitingBuildBeforeMoveDecision && currentPlayerGod === 'Prometheus' && (
+                                <div className="decision-modal">
+                                    <div className="modal-content">
+                                        <h2>Prometheus's Power</h2>
+                                        <p>If your Worker does not move up, it may build both before and after moving. Do you want to build before moving?</p>
+                                        <button onClick={handlePreMoveBuildYes}>Yes</button>
+                                        <button onClick={handlePreMoveBuildNo}>No</button>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Atlas's Dome Build Decision */}
+                            {awaitingBuildDomeDecision && currentPlayerGod === 'Atlas' && (
+                                <div className="decision-modal">
+                                    <div className="modal-content">
+                                        <h2>Atlas's Power</h2>
+                                        <p>You may build a dome at any level. Do you want to build a dome?</p>
+                                        <button onClick={() => handleBuildDomeOption(true)}>Yes</button>
+                                        <button onClick={() => handleBuildDomeOption(false)}>No</button>
+                                    </div>
+                                </div>
+                            )}
+                            {/* Demeter and Hephaestus's Extra Build Decision */}
+                            {awaitingSecondBuildDecision && (currentPlayerGod === 'Demeter' || currentPlayerGod === 'Hephaestus') && (
                                 <div className="decision-modal">
                                     <div className="modal-content">
                                         {currentPlayerGod === 'Demeter' && (
@@ -305,6 +502,12 @@ function Game() {
                                     </div>
                                 </div>
                             )}
+                            {/* Hermes's End Move Button */}
+                            {currentPlayerGod === 'Hermes' && gameState.gamePhase === 'MOVE' && (
+                                <div className="hermes-end-move-button">
+                                    <button onClick={handleEndMove}>End Move</button>
+                                </div>
+                            )}
                         </>
                     )}
                 </>
@@ -315,20 +518,22 @@ function Game() {
                         <label>Player A God:</label>
                         <select value={playerAGod} onChange={(e) => setPlayerAGod(e.target.value)}>
                             <option value="">Select God</option>
-                            <option value="Demeter">Demeter</option>
-                            <option value="Hephaestus">Hephaestus</option>
-                            <option value="Minotaur">Minotaur</option>
-                            <option value="Pan">Pan</option>
+                            {godOptions.map((god) => (
+                                <option key={god} value={god}>
+                                    {god}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
                         <label>Player B God:</label>
                         <select value={playerBGod} onChange={(e) => setPlayerBGod(e.target.value)}>
                             <option value="">Select God</option>
-                            <option value="Demeter">Demeter</option>
-                            <option value="Hephaestus">Hephaestus</option>
-                            <option value="Minotaur">Minotaur</option>
-                            <option value="Pan">Pan</option>
+                            {godOptions.map((god) => (
+                                <option key={god} value={god}>
+                                    {god}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <button onClick={startNewGame} disabled={!playerAGod || !playerBGod}>
@@ -338,6 +543,6 @@ function Game() {
             )}
         </div>
     );
+    
 }
-
 export default Game;
