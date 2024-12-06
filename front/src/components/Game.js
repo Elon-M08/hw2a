@@ -4,6 +4,7 @@ import axios from 'axios';
 import Board from './Board';
 import StatusBar from './StatusBar';
 import '../assets/styles/Game.css';
+import GodCardsAppendix from './GodCardsAppendix';
 
 axios.defaults.baseURL = 'http://localhost:8080';
 
@@ -25,6 +26,7 @@ function Game() {
     const [playerBGod, setPlayerBGod] = useState('');
     const [isGameStarted, setIsGameStarted] = useState(false);
 
+    const [showGodCards, setShowGodCards] = useState(false); // New state for modal
     const [strategyState, setStrategyState] = useState({});
     const [awaitingSecondBuildDecision, setAwaitingSecondBuildDecision] = useState(false);
     const [awaitingSecondMoveDecision, setAwaitingSecondMoveDecision] = useState(false);
@@ -432,9 +434,14 @@ function Game() {
             )}
             {isGameStarted ? (
                 <>
-                    <button className="btn-restart" onClick={resetGame}>
-                        Restart Game
-                    </button>
+                    <div className="top-bar">
+                        <button className="btn-restart" onClick={resetGame}>
+                            Restart Game
+                        </button>
+                        <button className="btn-god-cards" onClick={() => setShowGodCards(true)}>
+                            View God Cards
+                        </button>
+                    </div>
                     {gameState && (
                         <>
                             <StatusBar gameState={gameState} />
@@ -510,6 +517,7 @@ function Game() {
                             )}
                         </>
                     )}
+               {showGodCards && <GodCardsAppendix onClose={() => setShowGodCards(false)} />}
                 </>
             ) : (
                 <div className="god-selection-container">
@@ -543,6 +551,6 @@ function Game() {
             )}
         </div>
     );
-    
 }
+
 export default Game;
