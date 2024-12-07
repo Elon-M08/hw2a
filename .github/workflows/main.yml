@@ -23,7 +23,8 @@ jobs:
         java-version: '17'
 
     - name: Build with Maven
-      run: mvn -B package --file santorini-game/pom.xml
+      run: mvn -B package --file ./backend/pom.xml
+
 
     - name: Run tests
       run: mvn test
