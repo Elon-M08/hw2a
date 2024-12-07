@@ -27,4 +27,4 @@ jobs:
 
     - name: Run tests
       run: mvn test
-      working-directory: santorini-game
+      working-directory: backend
