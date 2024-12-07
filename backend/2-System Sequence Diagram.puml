@@ -1,6 +1,6 @@
 @startuml
 actor Player
-
+Player -> GameSystem : chooseGodCard()
 Player -> GameSystem : startGame()
 GameSystem -> Player : acknowledges game start
 
@@ -15,6 +15,8 @@ loop Turn-Based Loop
 
     Player -> GameSystem : buildStructure(location, type)
     GameSystem -> Player : confirms build
+    GameSystem -> Player : anyCodPowertoUse
+    Player -> GameSystem : Decide use GodPower or not
 
     Player -> GameSystem : checkWinCondition()
     alt if win condition not met

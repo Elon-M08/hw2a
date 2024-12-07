@@ -1,0 +1,30 @@
+
+@startuml
+actor Player as P
+participant "GameSystem" as GS
+
+P -> GS: Place Worker
+activate GS
+GS -> GS: Validate position
+GS -> GS: Update game state
+deactivate GS
+
+P -> GS: Move Worker
+activate GS
+GS -> GS: Validate move
+GS -> GS: Update board state
+deactivate GS
+
+P -> GS: Build Tower
+activate GS
+GS -> GS: Validate build
+GS -> GS: Update tower height
+deactivate GS
+
+P -> GS: End Turn
+activate GS
+GS -> GS: Switch player
+GS -> GS: Check victory condition
+deactivate GS
+
+@enduml

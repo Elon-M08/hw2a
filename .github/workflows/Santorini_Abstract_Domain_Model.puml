@@ -1,5 +1,6 @@
+
 @startuml
-' Entities
+' Abstract Entities
 class Game {
 }
 
@@ -10,7 +11,7 @@ class Player {
 class Worker {
 }
 
-class Grid {
+class Board {
 }
 
 class Cell {
@@ -24,22 +25,16 @@ class Block {
 
 class Dome {
 }
-class GodCard{
-
-}
 
 
-Game "1"*-- "2"Player : has
-Game "1"*-- "1"Grid : has
-Game "1" *-- "2" GodCard : has
+Game "1" *-- "2" Player : has
+Game "1" *-- "1" Grid : has
 Player o-- Worker : controls 2
-Player "1" *-- "1" GodCard : has
-
-Grid "1" *-- "25"Cell : contains
+Grid "1" *-- "25" Cell : contains
 
 Cell "1" o-- "0..1" Tower : contains
 Tower "1" *-- "1..3" Block : consists of
-Tower "1" *-- "0..1"Dome : can have
+Tower "1" *-- "0..1" Dome : can have
 Worker "1" -- "1" Cell : moves to
 Worker "1" -- "0..1" Tower : builds
 

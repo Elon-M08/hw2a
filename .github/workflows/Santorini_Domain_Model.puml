@@ -1,0 +1,91 @@
+
+@startuml
+!define RECTANGLE class
+!define INTERFACE interface
+
+RECTANGLE Game {
+  - Player playerA
+  - Player playerB
+  - Player currentPlayer
+  - Board board
+  - boolean gameEnded
+  - GamePhase currentPhase
+  - Worker selectedWorker
+  - String winner
+  --
+  + boolean placeWorker(int x, int y)
+  + boolean moveWorker(int workerIndex, int x, int y)
+  + boolean build(int x, int y)
+  + boolean checkVictory()
+  + void switchPlayer()
+  + GamePhase getCurrentPhase()
+}
+
+RECTANGLE Player {
+  - String name
+  - GodStrategy godStrategy
+  - List<Worker> workers
+  --
+  + String getName()
+  + List<Worker> getWorkers()
+  + GodStrategy getGodStrategy()
+  + void addWorker(Worker worker)
+}
+
+RECTANGLE Worker {
+  - int id
+  - Player owner
+  - int x
+  - int y
+  --
+  + int getX()
+  + int getY()
+  + Player getOwner()
+  + void setPosition(int x, int y)
+}
+
+RECTANGLE Board {
+  - Cell[][] cells
+  --
+  + boolean isOccupied(int x, int y)
+  + boolean moveWorker(int fromX, int fromY, int toX, int toY)
+  + boolean build(int x, int y)
+  + Cell getCell(int x, int y)
+  + Worker getWorkerAt(int x, int y)
+}
+
+RECTANGLE Cell {
+  - int height
+  - Worker worker
+  --
+  + boolean increaseHeight()
+  + void setWorker(Worker worker)
+  + boolean hasWorker()
+}
+
+INTERFACE GodStrategy {
+  + boolean move(Game game, Worker worker, int x, int y)
+  + boolean build(Game game, Worker worker, int x, int y)
+  + boolean checkVictory(Game game, Worker worker)
+  + void nextPhase(Game game)
+}
+
+RECTANGLE DemeterGodStrategy {
+  + boolean build(Game game, Worker worker, int x, int y)
+  + void nextPhase(Game game)
+}
+
+RECTANGLE MinotaurGodStrategy {
+  + boolean move(Game game, Worker worker, int x, int y)
+}
+
+GodStrategy <|.. DemeterGodStrategy
+GodStrategy <|.. MinotaurGodStrategy
+Player "2" *-- "1" Game
+Worker "2" *-- "1" Player
+Board "1" *-- "*" Cell
+Cell "1" *-- "0..1" Worker
+Game "1" *-- "1" Board
+Player "1" *-- "1" GodStrategy
+
+@enduml

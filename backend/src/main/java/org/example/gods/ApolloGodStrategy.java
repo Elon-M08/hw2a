@@ -5,7 +5,9 @@ import org.example.Board;
 import org.example.Game;
 import org.example.Worker;
 
+import java.util.ArrayList; // Added import
 import java.util.HashMap;
+import java.util.List; // Added import
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -16,7 +18,7 @@ import java.util.logging.Logger;
 public class ApolloGodStrategy extends AbstractGodStrategy {
     private static final Logger logger = Logger.getLogger(ApolloGodStrategy.class.getName());
 
-    private Map<String, Object> strategyState = new HashMap<>();
+    // Tracks if the player has performed a swap during this turn
     private boolean hasSwapped = false;
 
     @Override
@@ -24,9 +26,60 @@ public class ApolloGodStrategy extends AbstractGodStrategy {
         return "Apollo";
     }
 
+    /**
+     * Overrides the getSelectableMoveCells method to include opponent's cells for swapping.
+     * Apollo can move into an opponent's cell by swapping positions.
+     */
     @Override
-    public Map<String, Object> getStrategyState() {
-        return strategyState;
+    public List<Map<String, Integer>> getSelectableMoveCells(Game game, Worker worker) throws Exception {
+        logger.info(getName() + " Strategy: getSelectableMoveCells called");
+
+        Board board = game.getBoard();
+        int x = worker.getX();
+        int y = worker.getY();
+        int currentHeight = board.getTowerHeight(x, y);
+        List<Map<String, Integer>> selectableCells = new ArrayList<>();
+
+        // Iterate through all adjacent cells
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue; // Skip the current cell
+                int newX = x + dx;
+                int newY = y + dy;
+
+                if (!board.isWithinBounds(newX, newY)) continue;
+
+                int targetHeight = board.getTowerHeight(newX, newY);
+
+                // Check height difference
+                if (targetHeight - currentHeight > 1) continue;
+
+                Worker targetWorker = board.getWorkerAt(newX, newY);
+
+                if (targetWorker == null) {
+                    // Empty cell is a valid move
+                    Map<String, Integer> cell = new HashMap<>();
+                    cell.put("x", newX);
+                    cell.put("y", newY);
+                    selectableCells.add(cell);
+                } else if (!targetWorker.getOwner().equals(worker.getOwner())) {
+                    // Opponent's worker: Apollo can swap
+                    // Ensure that swapping does not push the opponent's worker into an invalid state
+                    // For Apollo, no push is involved; it's a direct swap
+
+                    // Check if the current cell (x, y) is a valid cell to receive the opponent's worker
+                    // Typically, swapping does not have additional constraints besides adjacency and height difference
+                    Map<String, Integer> cell = new HashMap<>();
+                    cell.put("x", newX);
+                    cell.put("y", newY);
+                    selectableCells.add(cell);
+                }
+                // Else, occupied by own worker: not selectable
+            }
+        }
+
+        logger.info(getName() + " Strategy: Selectable move cells determined");
+        return selectableCells;
     }
 
     /**
@@ -35,7 +88,7 @@ public class ApolloGodStrategy extends AbstractGodStrategy {
      */
     @Override
     public boolean move(Game game, Worker worker, int x, int y) throws Exception {
-        logger.info(getName() + " Strategy: move called");
+        logger.info(getName() + " Strategy: move called to (" + x + ", " + y + ")");
 
         Board board = game.getBoard();
         Worker targetWorker = board.getWorkerAt(x, y);
@@ -52,6 +105,14 @@ public class ApolloGodStrategy extends AbstractGodStrategy {
             if (!targetWorker.getOwner().equals(worker.getOwner())) {
                 int fromX = worker.getX();
                 int fromY = worker.getY();
+
+                // Check height difference for the swap
+                int currentHeight = board.getTowerHeight(fromX, fromY);
+                int targetHeight = board.getTowerHeight(x, y);
+                if (targetHeight - currentHeight > 1) {
+                    logger.warning(getName() + " Strategy: Cannot swap: Opponent's worker is too high.");
+                    throw new Exception("Cannot swap: Opponent's worker is too high.");
+                }
 
                 // Perform the swap
                 boolean swapSuccess = board.swapWorkers(worker, targetWorker);
@@ -105,7 +166,7 @@ public class ApolloGodStrategy extends AbstractGodStrategy {
 
         // Reset Apollo's state
         hasSwapped = false;
-        strategyState.clear();
+        strategyState.remove("hasSwapped");
 
         // Delegate to superclass to handle any additional reset logic
         super.playerEndsTurn(game);

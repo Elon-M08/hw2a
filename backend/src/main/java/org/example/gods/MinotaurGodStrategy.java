@@ -5,9 +5,9 @@ import org.example.Board;
 import org.example.Game;
 import org.example.Worker;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.ArrayList; // Added import
 import java.util.HashMap;
+import java.util.List; // Added import
 import java.util.Map;
 import java.util.logging.Logger;
 

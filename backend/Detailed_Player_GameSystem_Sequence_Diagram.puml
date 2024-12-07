@@ -1,0 +1,29 @@
+
+@startuml
+actor Player
+participant "GameSystem" as GS
+
+Player -> GS: startGame()
+GS --> Player: acknowledges game start
+
+Player -> GS: placeWorkers(worker1, worker2)
+GS --> Player: acknowledges worker placement
+
+loop [Turn-Based Loop]
+    Player -> GS: takeTurn()
+    Player -> GS: selectWorker(worker1)
+    Player -> GS: moveWorker(toPosition)
+    GS --> Player: confirms move
+    Player -> GS: buildStructure(location, type)
+    GS --> Player: confirms build
+    Player -> GS: checkWinCondition()
+
+    alt [if win condition not met]
+        GS --> Player: continue
+    else [if win condition met]
+        GS --> Player: playerWins()
+        GS -> Player: reportWinner()
+    end
+end
+
+@enduml

@@ -1,70 +1,97 @@
-# Getting Started with Create React App
+# Santorini Game - User Guide
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Introduction
+This Santorini game implementation provides a web-based interface and a backend server to simulate the logic of the popular board game *Santorini*. You can select special god powers for each player, place workers, move them, build structures, and attempt to achieve victory conditions defined by your chosen gods.
 
-## Available Scripts
+## Getting Started
+**Prerequisites:**
+- The backend server should be running on `http://localhost:8080`.
+- The frontend React application should be running (commonly on `http://localhost:3000`) after running `npm start` or `yarn start`.
 
-In the project directory, you can run:
+If you have changed any default ports or addresses, ensure `axios.defaults.baseURL` in `Game.js` matches the backend's base URL.
 
-### `npm start`
+## Selecting Gods and Starting the Game
+1. **Open the Web Interface:**  
+   Navigate to the frontend in your browser, typically at `http://localhost:3000`.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+2. **Choose God Cards:**
+   - On page load, you will see a menu where you must select a god power for **Player A** and **Player B**.
+   - Use the dropdown menus to select the desired gods.
+   - Once both gods are chosen, click the **"Start Game"** button.
+   
+   Supported gods may include: **Apollo, Artemis, Athena, Atlas, Demeter, Hephaestus, Minotaur, Pan, Prometheus, Hermes.**
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+3. **View God Powers (Optional):**  
+   Once the game starts, you can click **"View God Cards"** to open a reference guide explaining each god's abilities.
 
-### `npm test`
+## Game Phases and Actions
+The game proceeds in distinct phases, which are displayed on the Status Bar at the top:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. **Placement Phase (`PLACEMENT`):**  
+   - Each player alternates placing their two workers on any empty board cells.
+   - Click on an empty cell to place your current player's worker.
+   - After both players have placed two workers, the game enters the `MOVE` phase.
 
-### `npm run build`
+2. **Move Phase (`MOVE`):**  
+   - Click on one of your own workers to select it. Valid moves will highlight on the board.
+   - Click on a highlighted cell to move your selected worker there.
+   - After moving, you may proceed to a build phase, end your turn, or have special abilities (e.g., Artemis’s extra move), depending on the chosen god.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+3. **Build Phase (`BUILD` or `BUILD_AFTER_MOVE`):**  
+   - Click on one of your own workers to initiate a build action.
+   - Valid build cells will highlight on the board.
+   - Click a highlighted cell to build a level of a tower.
+   - Certain gods will prompt special choices:
+     - **Atlas:** Option to build a dome instead of a block.
+     - **Demeter / Hephaestus:** Options to build an additional time under certain conditions.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+4. **Special Prompts and Decisions:**
+   Depending on your chosen god, you may see prompts after moving or building:
+   - **Artemis:** After your first move, a modal asks if you want to move again.
+   - **Demeter / Hephaestus:** After building, a modal asks if you want to build again.
+   - **Atlas:** A modal asks if you want to build a dome.
+   - **Prometheus:** May ask if you want to build before moving.
+   - **Hermes:** You may have extended movement options and can choose to end your move at will.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+   Respond to these prompts (Yes/No) as desired to continue.
 
-### `npm run eject`
+5. **Ending Your Turn:**
+   - Once your moves and builds are done (or if you decline extra actions), your turn ends automatically.
+   - The game then switches to the other player.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Victory Condition
+The game checks for victory after certain actions:
+- Standard victory: reach a tower of height 3.
+- God-specific conditions: For example, Pan wins if a worker moves down two or more levels.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+When a victory is detected:
+- A victory modal appears announcing the winner.
+- Click **"Play Again"** to reset and start a new game, possibly with new gods.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Restarting the Game Mid-Play
+If you want to start over before the game ends, click the **"Restart Game"** button at the top.
+This resets the game state, allowing you to select new gods and begin again.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Troubleshooting Common Issues
+- **No Valid Moves or Builds:**  
+  If you see "No valid moves for this worker" or "Invalid build location," try selecting another worker or cell. Make sure you only move/build on highlighted cells.
+  
+- **Invalid Move Errors:**  
+  If you encounter "Invalid move. Try again.," ensure:
+  - You selected your own worker.
+  - The selected cell is adjacent and meets the height/build restrictions.
+  - It's the correct phase for the action you are attempting.
 
-## Learn More
+- **Server/Network Issues:**  
+  If actions fail due to network issues, ensure the backend server is running at `http://localhost:8080`. Adjust `axios.defaults.baseURL` in `Game.js` if needed.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Additional Information
+- **God Cards:**  
+  Each god modifies the standard rules. Use the "View God Cards" option to understand each one's ability.
+  
+- **Development and Debugging:**  
+  Open the browser's developer console for debugging. Check network requests and backend logs if actions don't behave as expected.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+**Enjoy playing Santorini with your chosen gods!**

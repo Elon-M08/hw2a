@@ -5,7 +5,9 @@ import org.example.Game;
 import org.example.Worker;
 import org.example.Board;
 
+import java.util.ArrayList; // Added import
 import java.util.HashMap;
+import java.util.List; // Added import
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -16,8 +18,8 @@ import java.util.logging.Logger;
 public class HephaestusGodStrategy extends DefaultGodStrategy {
     private static final Logger logger = Logger.getLogger(HephaestusGodStrategy.class.getName());
     
-    // Tracks if the player has performed an extra build on the same cell
-    private boolean hasPerformedExtraBuild = false;
+    // Tracks if an extra build is available
+    private boolean extraBuildAvailable = false;
     
     // Stores the coordinates of the first build to ensure the extra build is on the same cell
     private int firstBuildX = -1;
@@ -31,11 +33,9 @@ public class HephaestusGodStrategy extends DefaultGodStrategy {
     @Override
     public Map<String, Object> getStrategyState() {
         Map<String, Object> state = super.getStrategyState();
-        state.put("hasPerformedExtraBuild", hasPerformedExtraBuild);
+        state.put("extraBuildAvailable", extraBuildAvailable);
         state.put("firstBuildX", firstBuildX);
         state.put("firstBuildY", firstBuildY);
-        // Indicate if an extra build is available
-        state.put("extraBuildAvailable", hasPerformedExtraBuild);
         return state;
     }
 
@@ -66,27 +66,8 @@ public class HephaestusGodStrategy extends DefaultGodStrategy {
             throw new Exception("Cannot build beyond height 4.");
         }
 
-        if (hasPerformedExtraBuild) {
-            logger.warning(getName() + " Strategy: Extra build has already been performed.");
-            throw new Exception("Extra build has already been performed.");
-        }
-
-        if (firstBuildX == -1 && firstBuildY == -1) {
-            // First build
-            boolean buildSuccess = super.build(game, worker, x, y);
-            if (buildSuccess) {
-                hasPerformedExtraBuild = true;
-                firstBuildX = x;
-                firstBuildY = y;
-                strategyState.put("hasPerformedExtraBuild", true);
-                strategyState.put("firstBuildX", firstBuildX);
-                strategyState.put("firstBuildY", firstBuildY);
-                strategyState.put("extraBuildAvailable", true);
-                logger.info(getName() + " Strategy: First build completed at (" + x + ", " + y + "), extra build available on the same cell.");
-            }
-            return buildSuccess;
-        } else {
-            // Extra build on the same cell
+        if (extraBuildAvailable) {
+            // Extra build is available; ensure it's on the same cell
             if (x != firstBuildX || y != firstBuildY) {
                 logger.warning(getName() + " Strategy: Extra build must be on the same cell as the first build.");
                 throw new Exception("Extra build must be on the same cell as the first build.");
@@ -101,17 +82,53 @@ public class HephaestusGodStrategy extends DefaultGodStrategy {
             // Perform the extra build
             boolean buildSuccess = super.build(game, worker, x, y);
             if (buildSuccess) {
-                hasPerformedExtraBuild = false;
+                extraBuildAvailable = false;
                 firstBuildX = -1;
                 firstBuildY = -1;
-                strategyState.put("hasPerformedExtraBuild", false);
+                strategyState.put("extraBuildAvailable", false);
                 strategyState.put("firstBuildX", firstBuildX);
                 strategyState.put("firstBuildY", firstBuildY);
-                strategyState.put("extraBuildAvailable", false);
                 logger.info(getName() + " Strategy: Extra build completed at (" + x + ", " + y + ").");
             }
             return buildSuccess;
+        } else {
+            // First build
+            boolean buildSuccess = super.build(game, worker, x, y);
+            if (buildSuccess) {
+                extraBuildAvailable = true;
+                firstBuildX = x;
+                firstBuildY = y;
+                strategyState.put("extraBuildAvailable", true);
+                strategyState.put("firstBuildX", firstBuildX);
+                strategyState.put("firstBuildY", firstBuildY);
+                logger.info(getName() + " Strategy: First build completed at (" + x + ", " + y + "), extra build available on the same cell.");
+            }
+            return buildSuccess;
         }
+    }
+
+    /**
+     * Overrides the getSelectableBuildCells method to provide appropriate build options.
+     * When an extra build is available, only the first build cell is selectable.
+     */
+    @Override
+    public List<Map<String, Integer>> getSelectableBuildCells(Game game, Worker worker) throws Exception {
+        List<Map<String, Integer>> selectableBuildCells = new ArrayList<>();
+
+        if (extraBuildAvailable && firstBuildX != -1 && firstBuildY != -1) {
+            // Only allow building on the first build cell
+            Map<String, Integer> cell = new HashMap<>();
+            cell.put("x", firstBuildX);
+            cell.put("y", firstBuildY);
+            selectableBuildCells.add(cell);
+            logger.info(getName() + " Strategy: Selectable build cell limited to (" + firstBuildX + ", " + firstBuildY + ") for extra build.");
+        } else {
+            // Delegate to the default strategy to get selectable build cells
+            selectableBuildCells = super.getSelectableBuildCells(game, worker);
+            logger.info(getName() + " Strategy: Selectable build cells determined by default strategy.");
+        }
+
+        return selectableBuildCells;
     }
 
     /**
@@ -121,14 +138,15 @@ public class HephaestusGodStrategy extends DefaultGodStrategy {
     public void nextPhase(Game game) throws Exception {
         logger.info(getName() + " Strategy: nextPhase called.");
 
-        if (hasPerformedExtraBuild && firstBuildX != -1 && firstBuildY != -1) {
+        if (extraBuildAvailable) {
             // Awaiting extra build on the same cell
+            // Phase remains BUILD to allow the second build
             game.setCurrentPhase(Game.GamePhase.BUILD);
             logger.info(getName() + " Strategy: Awaiting extra build on (" + firstBuildX + ", " + firstBuildY + "). Phase remains BUILD.");
         } else {
-            // All builds completed, proceed to move phase
+            // All builds completed, proceed to the next phase
             super.nextPhase(game);
-            logger.info(getName() + " Strategy: Proceeding to move phase.");
+            logger.info(getName() + " Strategy: Proceeding to next phase.");
         }
     }
 
@@ -139,13 +157,12 @@ public class HephaestusGodStrategy extends DefaultGodStrategy {
     public void playerEndsTurn(Game game) throws Exception {
         logger.info(getName() + " Strategy: playerEndsTurn called.");
         // Reset Hephaestus's build state
-        hasPerformedExtraBuild = false;
+        extraBuildAvailable = false;
         firstBuildX = -1;
         firstBuildY = -1;
-        strategyState.put("hasPerformedExtraBuild", false);
+        strategyState.put("extraBuildAvailable", false);
         strategyState.put("firstBuildX", firstBuildX);
         strategyState.put("firstBuildY", firstBuildY);
-        strategyState.put("extraBuildAvailable", false);
         // Delegate to superclass to handle any additional reset logic
         super.playerEndsTurn(game);
     }

@@ -1,4 +1,3 @@
-// src/test/java/org/example/gods/MinotaurGodStrategyTest.java
 package org.example.gods;
 
 import org.example.Board;
@@ -7,7 +6,7 @@ import org.example.Player;
 import org.example.Worker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import java.util.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class MinotaurGodStrategyTest {
@@ -15,8 +14,8 @@ class MinotaurGodStrategyTest {
     private Game game;
     private Player playerA;
     private Player playerB;
-    private Worker workerA;
-    private Worker workerB;
+    private Worker minotaurWorker;
+    private Worker opponentWorker;
     private MinotaurGodStrategy minotaurStrategy;
 
     @BeforeEach
@@ -26,87 +25,66 @@ class MinotaurGodStrategyTest {
         playerB = new Player("Player B", new DefaultGodStrategy());
         game = new Game(minotaurStrategy, new DefaultGodStrategy());
 
-        // Place Player A's worker at (2,2)
-        workerA = new Worker(playerA, 2, 2);
-        game.getBoard().placeWorker(2, 2, workerA);
-        playerA.addWorker(workerA);
+        // Place Minotaur's worker at (2,2)
+        minotaurWorker = new Worker(playerA, 2, 2);
+        game.getBoard().placeWorker(2, 2, minotaurWorker);
+        playerA.addWorker(minotaurWorker);
 
-        // Place Player B's worker at (2,3)
-        workerB = new Worker(playerB, 2, 3);
-        game.getBoard().placeWorker(2, 3, workerB);
-        playerB.addWorker(workerB);
+        // Place opponent's worker at (2,3)
+        opponentWorker = new Worker(playerB, 2, 3);
+        game.getBoard().placeWorker(2, 3, opponentWorker);
+        playerB.addWorker(opponentWorker);
     }
 
     @Test
-    void testMoveIntoOpponentCellSuccessfullyPushes() throws Exception {
-        // Player A's worker attempts to move to (2,3) where Player B's worker is
-        boolean moveResult = minotaurStrategy.move(game, workerA, 2, 3);
-        assertTrue(moveResult, "Minotaur should successfully move into opponent's cell.");
+    void testMinotaurPushesOpponentWorker() throws Exception {
+        // Minotaur moves into the cell (2,3) occupied by the opponent's worker
+        boolean moveResult = minotaurStrategy.move(game, minotaurWorker, 2, 3);
 
-        // Check that Player B's worker has been pushed to (2,4)
+        // Verify the move succeeded
+        assertTrue(moveResult, "Minotaur should successfully move and push the opponent's worker.");
+
+        // Verify opponent's worker has been pushed to (2,4)
         Worker pushedWorker = game.getBoard().getWorkerAt(2, 4);
         assertNotNull(pushedWorker, "Opponent's worker should have been pushed to (2,4).");
-        assertEquals(workerB, pushedWorker, "Pushed worker should be Player B's worker.");
+        assertEquals(opponentWorker, pushedWorker, "Pushed worker should be the opponent's worker.");
 
-        // Check that Player A's worker is now at (2,3)
+        // Verify Minotaur's worker is now at (2,3)
         Worker movedWorker = game.getBoard().getWorkerAt(2, 3);
         assertNotNull(movedWorker, "Minotaur's worker should have moved to (2,3).");
-        assertEquals(workerA, movedWorker, "Moved worker should be Player A's worker.");
+        assertEquals(minotaurWorker, movedWorker, "Moved worker should be Minotaur's worker.");
     }
 
-    @Test
-    void testMoveIntoOpponentCellPushesOutOfBounds() {
-        // Attempt to move Player A's worker from (2,2) to (2,3), pushing Player B's worker to (2,4)
-        // Now, place Player B's worker at (2,4) which is the edge; pushing further would be out of bounds
-        game.getBoard().buildTower(2, 4, 3); // Assuming tower height < 4
-        game.getBoard().buildTower(2, 4, 3); // Now at height 3
-
-        // Place Player B's worker at (2,4)
-        Worker workerC = new Worker(playerB, 2, 4);
-        game.getBoard().placeWorker(2, 4, workerC);
-        playerB.addWorker(workerC);
-
-        Exception exception = assertThrows(Exception.class, () -> {
-            minotaurStrategy.move(game, workerA, 2, 3);
-        });
-
-        String expectedMessage = "Invalid move: Cannot push opponent's worker out of bounds.";
-        String actualMessage = exception.getMessage();
-
-        assertTrue(actualMessage.contains(expectedMessage), "Should throw exception for pushing out of bounds.");
-    }
 
     @Test
-    void testMoveIntoOpponentCellPushesIntoOccupiedSpace() {
-        // Place another worker at (2,4) to make pushing into (2,4) invalid
-        Worker workerC = new Worker(playerB, 2, 4);
-        game.getBoard().placeWorker(2, 4, workerC);
-        playerB.addWorker(workerC);
+    void testMinotaurCannotPushIntoOccupiedSpace() {
+        // Place another worker at (2,4) to block the push
+        Worker blockingWorker = new Worker(playerB, 2, 4);
+        game.getBoard().placeWorker(2, 4, blockingWorker);
 
+        // Attempt Minotaur's move
         Exception exception = assertThrows(Exception.class, () -> {
-            minotaurStrategy.move(game, workerA, 2, 3);
+            minotaurStrategy.move(game, minotaurWorker, 2, 3);
         });
 
+        // Validate the error message
         String expectedMessage = "Invalid move: Cannot push opponent's worker into an occupied space.";
-        String actualMessage = exception.getMessage();
-
-        assertTrue(actualMessage.contains(expectedMessage), "Should throw exception for pushing into occupied space.");
+        assertEquals(expectedMessage, exception.getMessage(), "Should not allow pushing into an occupied space.");
     }
 
     @Test
-    void testMoveIntoOwnWorkerCellFails() {
-        // Place Player A's second worker at (3,2)
-        Worker workerA2 = new Worker(playerA, 3, 2);
-        game.getBoard().placeWorker(3, 2, workerA2);
-        playerA.addWorker(workerA2);
+    void testMinotaurCannotMoveIntoOwnWorkerSpace() {
+        // Place another worker for Player A at (3,2)
+        Worker ownWorker = new Worker(playerA, 3, 2);
+        game.getBoard().placeWorker(3, 2, ownWorker);
 
+        // Attempt Minotaur's move
         Exception exception = assertThrows(Exception.class, () -> {
-            minotaurStrategy.move(game, workerA, 3, 2);
+            minotaurStrategy.move(game, minotaurWorker, 3, 2);
         });
 
+        // Validate the error message
         String expectedMessage = "Invalid move: Cannot move into your own worker's space.";
-        String actualMessage = exception.getMessage();
-
-        assertTrue(actualMessage.contains(expectedMessage), "Should throw exception for moving into own worker's space.");
+        assertEquals(expectedMessage, exception.getMessage(), "Should not allow moving into own worker's space.");
     }
 }

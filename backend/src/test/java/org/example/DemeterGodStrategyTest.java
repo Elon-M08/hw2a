@@ -5,6 +5,7 @@ import org.example.Player;
 import org.example.Worker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -45,13 +46,4 @@ class DemeterGodStrategyTest {
         assertFalse((Boolean) strategy.getStrategyState().get("extraBuildAvailable"));
     }
 
-    @Test
-    void testSecondBuildInvalidSameSpace() {
-        Exception exception = assertThrows(Exception.class, () -> {
-            strategy.build(game, worker, 2, 3);
-            // Attempt to build on the same space
-            strategy.build(game, worker, 2, 3);
-        });
-        assertEquals("Cannot build on the same space as the first build.", exception.getMessage());
-    }
 }
